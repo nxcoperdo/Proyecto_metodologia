@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Dashboard - Sistema de Inventario Titan Gym">
+  <title>Dashboard - Sistema de Inventario Titan Gym</title>
+
+
+    <link rel="icon" type="image/jpeg" href="img/480122487_2407748876249002_7178200603983230297_n.jpg">
+    <link rel="icon" type="image/jpeg" href="img/480122487_2407748876249002_7178200603983230297_n.jpg">
+  <link rel="stylesheet" href="css/dashboard.css">
+</head>
+
+<body>
+
+  <header>
+    <nav class="navbar">
+      <div class="logo">
+        <span class="logo-icon">🏋️</span>
+        <span class="logo-text">Titan Gym - Inventario</span>
+      </div>
+      <div class="nav-right">
+        <span class="usuario-info">👤 Admin</span>
+        <a href="index.html" class="btn-salir">Cerrar Sesión</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+
+    <div class="container">
+      <h1>Sistema de Inventario</h1>
+      <p class="subtitulo">Gestión de Equipos y Productos</p>
+
+      <div class="botones-accion">
+        <button class="btn-agregar">➕ Agregar Producto</button>
+        <button class="btn-reporte">📊 Ver Reportes</button>
+      </div>
+
+      <section class="inventario-seccion">
+        <h2>Inventario Actual</h2>
+
+        <div class="tabla-container">
+          <table class="tabla-inventario">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Categoría</th>
+                <th>Cantidad</th>
+                <th>Precio</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>001</td>
+                <td>Mancuernas 5kg</td>
+                <td>Equipos</td>
+                <td>20</td>
+                <td>$50.000</td>
+                <td><span class="estado bueno">Disponible</span></td>
+                <td>
+                  <button class="btn-editar">✏️ Editar</button>
+                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                </td>
+              </tr>
+              <tr>
+                <td>002</td>
+                <td>Proteína Whey 1kg</td>
+                <td>Suplementos</td>
+                <td>25</td>
+                <td>$85.000</td>
+                <td><span class="estado bueno">Disponible</span></td>
+                <td>
+                  <button class="btn-editar">✏️ Editar</button>
+                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                </td>
+              </tr>
+              <tr>
+                <td>003</td>
+                <td>Barra Olímpica</td>
+                <td>Equipos</td>
+                <td>5</td>
+                <td>$180.000</td>
+                <td><span class="estado bueno">Disponible</span></td>
+                <td>
+                  <button class="btn-editar">✏️ Editar</button>
+                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                </td>
+              </tr>
+              <tr>
+                <td>004</td>
+                <td>Creatina 300g</td>
+                <td>Suplementos</td>
+                <td>15</td>
+                <td>$45.000</td>
+                <td><span class="estado bueno">Disponible</span></td>
+                <td>
+                  <button class="btn-editar">✏️ Editar</button>
+                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                </td>
+              </tr>
+              <tr>
+                <td>005</td>
+                <td>Aminoácidos BCAA</td>
+                <td>Suplementos</td>
+                <td>5</td>
+                <td>$55.000</td>
+                <td><span class="estado bajo">Stock Bajo</span></td>
+                <td>
+                  <button class="btn-editar">✏️ Editar</button>
+                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                </td>
+              </tr>
+              <tr>
+                <td>006</td>
+                <td>Guantes de Gimnasio</td>
+                <td>Accesorios</td>
+                <td>30</td>
+                <td>$25.000</td>
+                <td><span class="estado bueno">Disponible</span></td>
+                <td>
+                  <button class="btn-editar">✏️ Editar</button>
+                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+
+  </main>
+
+
+
+</body>
+</html>
+
