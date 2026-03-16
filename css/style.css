@@ -6,8 +6,8 @@
 
 body {
   font-family: Arial, sans-serif;
-  background-color: #1a1a1a;
-  color: #ffffff;
+  background-color: #f4fff7;
+  color: #123524;
   line-height: 1.6;
 }
 
@@ -16,18 +16,18 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: linear-gradient(135deg, #000000 0%, #1a1a1a 50%, #2a2a2a 100%);
+  background: linear-gradient(135deg, #eafaf0 0%, #c6f0d5 50%, #9ddfb7 100%);
   padding: 2rem;
 }
 
 .login-box {
-  background-color: #2a2a2a;
-  border: 3px solid #FFD700;
+  background-color: #ffffff;
+  border: 3px solid #0b8f3a;
   border-radius: 15px;
   padding: 3rem;
   max-width: 450px;
   width: 100%;
-  box-shadow: 0 10px 30px rgba(255, 215, 0, 0.3);
+  box-shadow: 0 10px 30px rgba(11, 143, 58, 0.25);
 }
 
 .login-header {
@@ -47,19 +47,19 @@ body {
 }
 
 .logo-login h1 {
-  color: #FFD700;
+  color: #0b8f3a;
   font-size: 2.5rem;
   margin: 0;
 }
 
 .login-subtitle {
-  color: #cccccc;
+  color: #2e5a40;
   font-size: 1.1rem;
   margin-top: 0.5rem;
 }
 
 .login-form h2 {
-  color: #FFD700;
+  color: #0b8f3a;
   font-size: 1.8rem;
   text-align: center;
   margin-bottom: 0.5rem;
@@ -67,7 +67,7 @@ body {
 
 .form-descripcion {
   text-align: center;
-  color: #cccccc;
+  color: #2e5a40;
   margin-bottom: 2rem;
   font-size: 0.95rem;
 }
@@ -78,7 +78,7 @@ body {
 
 .form-group label {
   display: block;
-  color: #FFD700;
+  color: #0b8f3a;
   font-weight: bold;
   margin-bottom: 0.5rem;
   font-size: 1rem;
@@ -88,18 +88,18 @@ body {
   width: 100%;
   padding: 0.8rem;
   font-size: 1rem;
-  border: 2px solid #FFD700;
+  border: 2px solid #0b8f3a;
   border-radius: 8px;
-  background-color: #1a1a1a;
-  color: #ffffff;
+  background-color: #ffffff;
+  color: #123524;
   transition: all 0.3s;
 }
 
 .form-group input:focus {
   outline: none;
-  border-color: #FFC700;
-  background-color: #000000;
-  box-shadow: 0 0 10px rgba(255, 215, 0, 0.3);
+  border-color: #0a7330;
+  background-color: #f3fff7;
+  box-shadow: 0 0 10px rgba(11, 143, 58, 0.25);
 }
 
 .btn-login {
@@ -107,8 +107,8 @@ body {
   padding: 1rem;
   font-size: 1.1rem;
   font-weight: bold;
-  background-color: #FFD700;
-  color: #000000;
+  background-color: #0b8f3a;
+  color: #ffffff;
   border: none;
   border-radius: 8px;
   cursor: pointer;
@@ -117,38 +117,38 @@ body {
 }
 
 .btn-login:hover {
-  background-color: #FFC700;
+  background-color: #0a7330;
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+  box-shadow: 0 5px 15px rgba(11, 143, 58, 0.35);
 }
 
 .login-info {
   margin-top: 2rem;
   padding: 1rem;
-  background-color: #1a1a1a;
+  background-color: #f3fff7;
   border-radius: 8px;
-  border-left: 4px solid #FFD700;
+  border-left: 4px solid #0b8f3a;
 }
 
 .login-info p {
-  color: #cccccc;
+  color: #2e5a40;
   font-size: 0.9rem;
   margin: 0.3rem 0;
 }
 
 .login-info strong {
-  color: #FFD700;
+  color: #0b8f3a;
 }
 
 .login-footer {
   text-align: center;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 2px solid #444444;
+  border-top: 2px solid #9acfb1;
 }
 
 .login-footer p {
-  color: #888888;
+  color: #2e5a40;
   font-size: 0.9rem;
   margin: 0.3rem 0;
 }

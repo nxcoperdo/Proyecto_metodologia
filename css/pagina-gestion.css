@@ -6,8 +6,8 @@
 
 body {
   font-family: Arial, sans-serif;
-  background-color: #1a1a1a;
-  color: #ffffff;
+  background-color: #f4fff7;
+  color: #123524;
   line-height: 1.6;
 }
 
@@ -18,9 +18,9 @@ body {
 }
 
 header {
-  background-color: #000000;
+  background-color: #0b8f3a;
   padding: 1rem 0;
-  border-bottom: 3px solid #FFD700;
+  border-bottom: 3px solid #0a7330;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -41,7 +41,7 @@ header {
   gap: 0.5rem;
   font-size: 1.5rem;
   font-weight: bold;
-  color: #FFD700;
+  color: #ffffff;
 }
 
 .logo-icon {
@@ -49,7 +49,7 @@ header {
 }
 
 .logo-text {
-  color: #FFD700;
+  color: #ffffff;
 }
 
 .nav-right {
@@ -84,7 +84,7 @@ main {
 
 h1 {
   font-size: 2.5rem;
-  color: #FFD700;
+  color: #0b8f3a;
   text-align: center;
   margin-bottom: 0.5rem;
   margin-top: 1rem;
@@ -92,7 +92,7 @@ h1 {
 
 .subtitulo {
   text-align: center;
-  color: #cccccc;
+  color: #2e5a40;
   font-size: 1.1rem;
   margin-bottom: 2rem;
 }
@@ -105,8 +105,8 @@ h1 {
 }
 
 .btn-agregar {
-  background-color: #FFD700;
-  color: #000000;
+  background-color: #0b8f3a;
+  color: #ffffff;
   padding: 0.8rem 1.5rem;
   font-size: 1rem;
   font-weight: bold;
@@ -117,26 +117,26 @@ h1 {
 }
 
 .btn-agregar:hover {
-  background-color: #FFC700;
+  background-color: #0a7330;
   transform: translateY(-2px);
-  box-shadow: 0 5px 15px rgba(255, 215, 0, 0.4);
+  box-shadow: 0 5px 15px rgba(11, 143, 58, 0.35);
 }
 
 .btn-reporte {
-  background-color: #2a2a2a;
-  color: #FFD700;
+  background-color: #ffffff;
+  color: #0b8f3a;
   padding: 0.8rem 1.5rem;
   font-size: 1rem;
   font-weight: bold;
-  border: 2px solid #FFD700;
+  border: 2px solid #0b8f3a;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.3s;
 }
 
 .btn-reporte:hover {
-  background-color: #FFD700;
-  color: #000000;
+  background-color: #0b8f3a;
+  color: #ffffff;
 }
 
 .inventario-seccion {
@@ -145,17 +145,17 @@ h1 {
 
 h2 {
   font-size: 2rem;
-  color: #FFD700;
+  color: #0b8f3a;
   margin-bottom: 1.5rem;
   text-align: center;
 }
 
 .tabla-container {
   overflow-x: auto;
-  background-color: #2a2a2a;
+  background-color: #ffffff;
   border-radius: 10px;
   padding: 1.5rem;
-  border: 3px solid #FFD700;
+  border: 3px solid #0b8f3a;
 }
 
 .tabla-inventario {
@@ -164,8 +164,8 @@ h2 {
 }
 
 .tabla-inventario thead {
-  background-color: #FFD700;
-  color: #000000;
+  background-color: #0b8f3a;
+  color: #ffffff;
 }
 
 .tabla-inventario th {
@@ -177,11 +177,11 @@ h2 {
 
 .tabla-inventario td {
   padding: 1rem;
-  border-bottom: 1px solid #444444;
+  border-bottom: 1px solid #cde9d8;
 }
 
 .tabla-inventario tbody tr:hover {
-  background-color: #333333;
+  background-color: #effbf4;
 }
 
 .estado {
@@ -193,17 +193,17 @@ h2 {
 }
 
 .estado.bueno {
-  background-color: #28a745;
+  background-color: #0b8f3a;
   color: #ffffff;
 }
 
 .estado.bajo {
-  background-color: #ffc107;
-  color: #000000;
+  background-color: #d7f5e3;
+  color: #0a5e2a;
 }
 
 .btn-editar {
-  background-color: #007bff;
+  background-color: #0b8f3a;
   color: #ffffff;
   padding: 0.4rem 0.8rem;
   border: none;
@@ -215,11 +215,11 @@ h2 {
 }
 
 .btn-editar:hover {
-  background-color: #0056b3;
+  background-color: #0a7330;
 }
 
 .btn-eliminar {
-  background-color: #dc3545;
+  background-color: #2f8f57;
   color: #ffffff;
   padding: 0.4rem 0.8rem;
   border: none;
@@ -230,19 +230,19 @@ h2 {
 }
 
 .btn-eliminar:hover {
-  background-color: #c82333;
+  background-color: #237045;
 }
 
 footer {
-  background-color: #000000;
+  background-color: #0b8f3a;
   padding: 1.5rem 0;
-  border-top: 3px solid #FFD700;
+  border-top: 3px solid #0a7330;
   text-align: center;
   margin-top: 3rem;
 }
 
 footer p {
-  color: #cccccc;
+  color: #ffffff;
   font-size: 0.9rem;
 }
 

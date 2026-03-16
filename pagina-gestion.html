@@ -3,11 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="Página de Gestión - Sistema de Inventario Titan Gym">
-  <title>Página de Gestión - Sistema de Inventario Titan Gym</title>
+  <meta name="description" content="Pagina de Gestion - Sistema de Inventario Deportivo FET">
+  <title>Pagina de Gestion - Inventario Deportivo FET</title>
 
 
-    <link rel="icon" type="image/jpeg" href="img/480122487_2407748876249002_7178200603983230297_n.jpg">
     <link rel="icon" type="image/jpeg" href="img/480122487_2407748876249002_7178200603983230297_n.jpg">
   <link rel="stylesheet" href="css/pagina-gestion.css">
 </head>
@@ -17,11 +16,11 @@
   <header>
     <nav class="navbar">
       <div class="logo">
-            <img src="img/480122487_2407748876249002_7178200603983230297_n.jpg" alt="Logo Titan Gym" class="logo-img" width="50" height="50">
-        <span class="logo-text">Titan Gym - Inventario</span>
+            <img src="img/480122487_2407748876249002_7178200603983230297_n.jpg" alt="Logo Universidad FET" class="logo-img" width="50" height="50">
+        <span class="logo-text">FET - Inventario Deportivo</span>
       </div>
       <div class="nav-right">
-        <span class="usuario-info">👤 Admin</span>
+        <span class="usuario-info">👤 Admin Deportes</span>
         <a href="pagina-login.html" class="btn-salir">Cerrar Sesión</a>
       </div>
     </nav>
@@ -30,26 +29,27 @@
   <main>
 
     <div class="container">
-      <h1>Sistema de Inventario</h1>
-      <p class="subtitulo">Gestión de Equipos y Productos</p>
+      <h1>Sistema de Inventario Deportivo</h1>
+      <p class="subtitulo">Prestamo y control de elementos deportivos universitarios</p>
 
       <div class="botones-accion">
-        <button class="btn-agregar">➕ Agregar Producto</button>
-        <button class="btn-reporte">📊 Ver Reportes</button>
+        <button class="btn-agregar">➕ Registrar prestamo</button>
+        <button class="btn-reporte">📥 Registrar devolucion</button>
       </div>
 
       <section class="inventario-seccion">
-        <h2>Inventario Actual</h2>
+        <h2>Elementos y prestamos actuales</h2>
 
         <div class="tabla-container">
           <table class="tabla-inventario">
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Nombre</th>
-                <th>Categoría</th>
-                <th>Cantidad</th>
-                <th>Precio</th>
+                <th>Elemento</th>
+                <th>Categoria</th>
+                <th>Total</th>
+                <th>Prestados</th>
+                <th>Disponibles</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
@@ -57,10 +57,11 @@
             <tbody>
               <tr>
                 <td>001</td>
-                <td>Mancuernas 5kg</td>
-                <td>Equipos</td>
+                <td>Balon de futbol</td>
+                <td>Balones</td>
+                <td>15</td>
+                <td>5</td>
                 <td>20</td>
-                <td>$50.000</td>
                 <td><span class="estado bueno">Disponible</span></td>
                 <td>
                   <button class="btn-editar">✏️ Editar</button>
@@ -69,10 +70,11 @@
               </tr>
               <tr>
                 <td>002</td>
-                <td>Proteína Whey 1kg</td>
-                <td>Suplementos</td>
-                <td>25</td>
-                <td>$85.000</td>
+                <td>Petos de entrenamiento</td>
+                <td>Uniformes</td>
+                <td>30</td>
+                <td>8</td>
+                <td>22</td>
                 <td><span class="estado bueno">Disponible</span></td>
                 <td>
                   <button class="btn-editar">✏️ Editar</button>
@@ -81,10 +83,11 @@
               </tr>
               <tr>
                 <td>003</td>
-                <td>Barra Olímpica</td>
-                <td>Equipos</td>
-                <td>5</td>
-                <td>$180.000</td>
+                <td>Raquetas de tenis de mesa</td>
+                <td>Raquetas</td>
+                <td>18</td>
+                <td>11</td>
+                <td>7</td>
                 <td><span class="estado bueno">Disponible</span></td>
                 <td>
                   <button class="btn-editar">✏️ Editar</button>
@@ -93,10 +96,11 @@
               </tr>
               <tr>
                 <td>004</td>
-                <td>Creatina 300g</td>
-                <td>Suplementos</td>
+                <td>Cronometros</td>
+                <td>Accesorios</td>
+                <td>10</td>
+                <td>3</td>
                 <td>15</td>
-                <td>$45.000</td>
                 <td><span class="estado bueno">Disponible</span></td>
                 <td>
                   <button class="btn-editar">✏️ Editar</button>
@@ -105,11 +109,12 @@
               </tr>
               <tr>
                 <td>005</td>
-                <td>Aminoácidos BCAA</td>
-                <td>Suplementos</td>
+                <td>Conos de agilidad</td>
+                <td>Entrenamiento</td>
+                <td>25</td>
+                <td>20</td>
                 <td>5</td>
-                <td>$55.000</td>
-                <td><span class="estado bajo">Stock Bajo</span></td>
+                <td><span class="estado bajo">Pocas unidades</span></td>
                 <td>
                   <button class="btn-editar">✏️ Editar</button>
                   <button class="btn-eliminar">🗑️ Eliminar</button>
@@ -117,10 +122,11 @@
               </tr>
               <tr>
                 <td>006</td>
-                <td>Guantes de Gimnasio</td>
+                <td>Mallas de voleibol</td>
                 <td>Accesorios</td>
-                <td>30</td>
-                <td>$25.000</td>
+                <td>6</td>
+                <td>2</td>
+                <td>4</td>
                 <td><span class="estado bueno">Disponible</span></td>
                 <td>
                   <button class="btn-editar">✏️ Editar</button>
