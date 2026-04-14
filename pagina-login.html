@@ -5,50 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Sistema de Inventario Web - Universidad FET">
   <title>Ingreso - Inventario Deportivo FET</title>
-  <link rel="icon" type="image/jpeg" href="">
+  <link rel="icon" type="image/jpeg" href="img/fetlogo.jpg">
   <link rel="stylesheet" href="css/style.css">
 </head>
 
 <body>
-
   <div class="login-container">
-
     <div class="login-box">
-
       <div class="login-header">
         <div class="logo-login">
-           <img src="" alt="Logo Universidad FET" class="logo-img" width="100" height="100">
+          <img src="img/fetlogo.jpg" alt="Logo Universidad FET" class="logo-img">
           <h1>Universidad FET</h1>
         </div>
-        <p class="login-subtitle">Inventario y Prestamo de Elementos Deportivos</p>
+        <p class="login-subtitle">Sistema de inventario y préstamo de elementos deportivos</p>
       </div>
 
-      <form class="login-form" action="pagina-gestion.html" method="get">
-
+      <form class="login-form" id="loginForm" action="#" method="post">
         <h2>Iniciar Sesión</h2>
         <p class="form-descripcion">Ingrese sus credenciales de administrador</p>
 
         <div class="form-group">
           <label for="usuario">Usuario</label>
-          <input type="text" id="usuario" name="usuario" placeholder="Ingresa tu usuario" required>
+          <input type="text" id="usuario" name="usuario" placeholder="Ingrese su usuario" required>
         </div>
 
         <div class="form-group">
           <label for="password">Contraseña</label>
-          <input type="password" id="password" name="password" placeholder="Ingresa tu contraseña" required>
+          <input type="password" id="password" name="password" placeholder="Ingrese su contraseña" required>
         </div>
 
         <button type="submit" class="btn-login">Ingresar al sistema</button>
-
-
-
+        <p class="mensaje-login" id="mensajeLogin" aria-live="polite"></p>
+        <p class="login-ayuda">Credenciales de prueba: <strong>admin</strong> / <strong>admin123</strong></p>
       </form>
-
-
-
     </div>
-
   </div>
+
+  <script src="js/login.js"></script>
 
 </body>
 </html>

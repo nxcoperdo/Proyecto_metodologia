@@ -5,40 +5,104 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description" content="Pagina de Gestion - Sistema de Inventario Deportivo FET">
   <title>Pagina de Gestion - Inventario Deportivo FET</title>
-
-
-    <link rel="icon" type="image/jpeg" href="img/480122487_2407748876249002_7178200603983230297_n.jpg">
+  <link rel="icon" type="image/jpeg" href="img/fetlogo.jpg">
   <link rel="stylesheet" href="css/pagina-gestion.css">
 </head>
 
 <body>
-
   <header>
     <nav class="navbar">
       <div class="logo">
-            <img src="" alt="Logo Universidad FET" class="logo-img" width="50" height="50">
+        <img src="img/fetlogo.jpg" alt="Logo Universidad FET" class="logo-img">
         <span class="logo-text">FET - Inventario Deportivo</span>
       </div>
       <div class="nav-right">
         <span class="usuario-info">👤 Admin Deportes</span>
-        <a href="pagina-login.html" class="btn-salir">Cerrar Sesión</a>
+        <a href="pagina-login.html" class="btn-salir" id="btnSalir">Cerrar Sesión</a>
       </div>
     </nav>
   </header>
 
   <main>
-
     <div class="container">
-      <h1>Sistema de Inventario Deportivo</h1>
-      <p class="subtitulo">Prestamo y control de elementos deportivos universitarios</p>
+      <section class="bienvenida">
+        <p class="etiqueta">Sistema de inventario web FET</p>
+        <h1>Panel de gestión de elementos deportivos</h1>
+        <p class="subtitulo">Aquí puedes registrar, consultar y administrar el préstamo de los elementos deportivos de la universidad.</p>
+      </section>
 
-      <div class="botones-accion">
-        <button class="btn-agregar">➕ Registrar prestamo</button>
-        <button class="btn-reporte">📥 Registrar devolucion</button>
-      </div>
+      <section class="resumen-grid">
+        <article class="resumen-card">
+          <span class="resumen-numero">06</span>
+          <p>Elementos registrados</p>
+        </article>
+        <article class="resumen-card">
+          <span class="resumen-numero">49</span>
+          <p>Préstamos activos</p>
+        </article>
+        <article class="resumen-card">
+          <span class="resumen-numero">04</span>
+          <p>Categorías principales</p>
+        </article>
+      </section>
 
-      <section class="inventario-seccion">
-        <h2>Elementos y prestamos actuales</h2>
+      <section class="dashboard-grid">
+        <article class="card panel-formulario">
+          <h2>Registrar nuevo elemento</h2>
+          <form class="formulario-elemento">
+            <div class="campo-grupo">
+              <label for="elemento">Nombre del elemento</label>
+              <input type="text" id="elemento" name="elemento" placeholder="Ejemplo: Balón de fútbol">
+            </div>
+            <div class="campo-grupo">
+              <label for="categoria">Categoría</label>
+              <input type="text" id="categoria" name="categoria" placeholder="Ejemplo: Balones">
+            </div>
+            <div class="fila-campos">
+              <div class="campo-grupo">
+                <label for="total">Cantidad total</label>
+                <input type="number" id="total" name="total" min="1" placeholder="0">
+              </div>
+              <div class="campo-grupo">
+                <label for="prestados">Cantidad prestada</label>
+                <input type="number" id="prestados" name="prestados" min="0" placeholder="0">
+              </div>
+            </div>
+            <div class="campo-grupo">
+              <label for="estado">Estado</label>
+              <input type="text" id="estado" name="estado" placeholder="Disponible / Pocas unidades">
+            </div>
+            <button type="button" class="btn-principal">Guardar elemento</button>
+          </form>
+        </article>
+
+        <article class="card panel-prestamo">
+          <h2>Préstamos y devoluciones</h2>
+          <p class="texto-panel">Este espacio sirve para organizar el control de salida y regreso de los elementos deportivos.</p>
+          <div class="acciones-rapidas">
+            <button type="button" class="btn-secundario">Registrar préstamo</button>
+            <button type="button" class="btn-secundario">Registrar devolución</button>
+          </div>
+          <div class="lista-pasos">
+            <p>1. Seleccionar el elemento.</p>
+            <p>2. Escribir el nombre del estudiante.</p>
+            <p>3. Confirmar la cantidad prestada.</p>
+          </div>
+        </article>
+      </section>
+
+      <section class="card inventario-seccion">
+        <div class="seccion-cabecera">
+          <div>
+            <h2>Inventario actual</h2>
+            <p class="texto-panel">Tabla base para revisar el estado de los elementos deportivos.</p>
+          </div>
+          <form class="buscador">
+            <label for="busqueda" class="sr-only">Buscar elemento o categoría</label>
+            <input type="search" id="busqueda" placeholder="Buscar elemento o categoría">
+            <button type="button">Buscar</button>
+          </form>
+        </div>
 
         <div class="tabla-container">
           <table class="tabla-inventario">
@@ -46,7 +110,7 @@
               <tr>
                 <th>ID</th>
                 <th>Elemento</th>
-                <th>Categoria</th>
+                <th>Categoría</th>
                 <th>Total</th>
                 <th>Prestados</th>
                 <th>Disponibles</th>
@@ -57,15 +121,15 @@
             <tbody>
               <tr>
                 <td>001</td>
-                <td>Balon de futbol</td>
+                <td>Balón de fútbol</td>
                 <td>Balones</td>
-                <td>15</td>
-                <td>5</td>
                 <td>20</td>
+                <td>5</td>
+                <td>15</td>
                 <td><span class="estado bueno">Disponible</span></td>
                 <td>
-                  <button class="btn-editar">✏️ Editar</button>
-                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                  <button type="button" class="btn-editar">Editar</button>
+                  <button type="button" class="btn-eliminar">Eliminar</button>
                 </td>
               </tr>
               <tr>
@@ -77,8 +141,8 @@
                 <td>22</td>
                 <td><span class="estado bueno">Disponible</span></td>
                 <td>
-                  <button class="btn-editar">✏️ Editar</button>
-                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                  <button type="button" class="btn-editar">Editar</button>
+                  <button type="button" class="btn-eliminar">Eliminar</button>
                 </td>
               </tr>
               <tr>
@@ -90,21 +154,21 @@
                 <td>7</td>
                 <td><span class="estado bueno">Disponible</span></td>
                 <td>
-                  <button class="btn-editar">✏️ Editar</button>
-                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                  <button type="button" class="btn-editar">Editar</button>
+                  <button type="button" class="btn-eliminar">Eliminar</button>
                 </td>
               </tr>
               <tr>
                 <td>004</td>
-                <td>Cronometros</td>
+                <td>Cronómetros</td>
                 <td>Accesorios</td>
                 <td>10</td>
                 <td>3</td>
-                <td>15</td>
+                <td>7</td>
                 <td><span class="estado bueno">Disponible</span></td>
                 <td>
-                  <button class="btn-editar">✏️ Editar</button>
-                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                  <button type="button" class="btn-editar">Editar</button>
+                  <button type="button" class="btn-eliminar">Eliminar</button>
                 </td>
               </tr>
               <tr>
@@ -116,8 +180,8 @@
                 <td>5</td>
                 <td><span class="estado bajo">Pocas unidades</span></td>
                 <td>
-                  <button class="btn-editar">✏️ Editar</button>
-                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                  <button type="button" class="btn-editar">Editar</button>
+                  <button type="button" class="btn-eliminar">Eliminar</button>
                 </td>
               </tr>
               <tr>
@@ -129,20 +193,18 @@
                 <td>4</td>
                 <td><span class="estado bueno">Disponible</span></td>
                 <td>
-                  <button class="btn-editar">✏️ Editar</button>
-                  <button class="btn-eliminar">🗑️ Eliminar</button>
+                  <button type="button" class="btn-editar">Editar</button>
+                  <button type="button" class="btn-eliminar">Eliminar</button>
                 </td>
               </tr>
             </tbody>
           </table>
         </div>
       </section>
-
     </div>
-
   </main>
 
-
+  <script src="js/gestion.js"></script>
 
 </body>
 </html>
