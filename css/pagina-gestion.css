@@ -453,6 +453,17 @@ h1 {
   padding: 0.45rem 0.75rem;
   color: #ffffff;
   font-size: 0.85rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+}
+
+.btn-editar svg,
+.btn-eliminar svg {
+  width: 18px;
+  height: 18px;
+  display: block;
 }
 
 .btn-editar {
@@ -492,6 +503,7 @@ h1 {
 .modal-caja {
   width: 100%;
   max-width: 520px;
+  max-height: 85vh;
   background: #ffffff;
   border: 2px solid #0b8f3a;
   border-radius: 16px;
@@ -500,6 +512,8 @@ h1 {
   transform: translateY(16px) scale(0.97);
   opacity: 0;
   transition: transform 0.22s ease, opacity 0.22s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .modal-overlay.activo .modal-caja {
@@ -546,6 +560,27 @@ h1 {
 .modal-contenido {
   padding: 1rem 1.2rem;
   color: #1c3a2a;
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.modal-contenido::-webkit-scrollbar {
+  width: 8px;
+}
+
+.modal-contenido::-webkit-scrollbar-track {
+  background: #f0f0f0;
+  border-radius: 10px;
+}
+
+.modal-contenido::-webkit-scrollbar-thumb {
+  background: #0b8f3a;
+  border-radius: 10px;
+}
+
+.modal-contenido::-webkit-scrollbar-thumb:hover {
+  background: #086d2b;
 }
 
 .modal-acciones {
@@ -553,6 +588,9 @@ h1 {
   justify-content: flex-end;
   gap: 0.6rem;
   padding: 0.9rem 1.2rem 1.2rem;
+  border-top: 1px solid #e3f0e6;
+  background: #ffffff;
+  flex-shrink: 0;
 }
 
 .modal-btn-principal,

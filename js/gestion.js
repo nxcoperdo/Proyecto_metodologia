@@ -12,6 +12,8 @@ const tablaBody = document.getElementById('tbodyInventario');
 const formulario = document.querySelector('.formulario-elemento');
 const btnVerCategorias = document.getElementById('btnVerCategorias');
 const btnRegistrarCategoria = document.getElementById('btnRegistrarCategoria');
+const btnVerUbicaciones = document.getElementById('btnVerUbicaciones');
+const btnRegistrarUbicacion = document.getElementById('btnRegistrarUbicacion');
 const formProducto = document.getElementById('formProducto');
 const inputNumeroItem = document.getElementById('numeroItem');
 const inputElemento = document.getElementById('elemento');
@@ -30,6 +32,7 @@ const resumenNumeros = document.querySelectorAll('.resumen-numero');
 
 let inventario = [];
 let categorias = [];
+let ubicaciones = [];
 
 const dialogo = crearSistemaDialogos();
 
@@ -47,6 +50,7 @@ iniciar();
 async function iniciar() {
   pintarUsuario();
   await cargarCategorias();
+  await cargarUbicaciones();
   await cargarInventario();
 }
 
@@ -89,6 +93,14 @@ if (btnVerCategorias) {
 
 if (btnRegistrarCategoria) {
   btnRegistrarCategoria.addEventListener('click', registrarCategoria);
+}
+
+if (btnVerUbicaciones) {
+  btnVerUbicaciones.addEventListener('click', mostrarUbicaciones);
+}
+
+if (btnRegistrarUbicacion) {
+  btnRegistrarUbicacion.addEventListener('click', registrarUbicacion);
 }
 
 if (btnPrestamo) {
@@ -160,6 +172,14 @@ document.body.addEventListener('click', function (evento) {
   if (accion === 'eliminar-categoria') {
     eliminarCategoria(id);
   }
+  
+  if (accion === 'editar-ubicacion') {
+    editarUbicacion(id);
+  }
+
+  if (accion === 'eliminar-ubicacion') {
+    eliminarUbicacion(id);
+  }
 });
 
 async function cargarInventario() {
@@ -176,7 +196,7 @@ async function cargarInventario() {
     actualizarResumen(inventario);
   } catch (error) {
     if (tablaBody) {
-      tablaBody.innerHTML = '<tr><td colspan="15">Error cargando inventario desde API.</td></tr>';
+        tablaBody.innerHTML = '<tr><td colspan="12">Error cargando inventario desde API.</td></tr>';
     }
     await dialogo.alerta('Error de conexion', 'No se pudo conectar con el backend: ' + error.message, 'error');
   }
@@ -304,13 +324,169 @@ async function eliminarCategoria(id) {
   }
 }
 
+// ---------- Ubicaciones (bodegas) - frontend handlers ----------
+async function cargarUbicaciones() {
+  try {
+    const respuesta = await fetch(API_BASE + '/ubicaciones');
+    const data = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(data.mensaje || 'No se pudieron cargar ubicaciones');
+    }
+
+    ubicaciones = data;
+  } catch (error) {
+    await dialogo.alerta('Error de ubicaciones', 'No se pudieron cargar las ubicaciones: ' + error.message, 'error');
+  }
+}
+
+async function mostrarUbicaciones() {
+  if (!ubicaciones.length) {
+    await cargarUbicaciones();
+  }
+
+  const filas = ubicaciones.length
+    ? ubicaciones
+        .map(function (u) {
+          return (
+            '<tr>' +
+            '<td>' + u.id_ubicacion + '</td>' +
+            '<td>' + escaparAtributo(u.nombre) + '</td>' +
+            '<td>' + escaparAtributo(u.descripcion || 'Sin descripcion') + '</td>' +
+            '<td>' +
+            '<button type="button" class="btn-editar" data-action="editar-ubicacion" data-id="' + u.id_ubicacion + '">Editar</button>' +
+            '<button type="button" class="btn-eliminar" data-action="eliminar-ubicacion" data-id="' + u.id_ubicacion + '">Eliminar</button>' +
+            '</td>' +
+            '</tr>'
+          );
+        })
+        .join('')
+    : '<tr><td colspan="4">No hay ubicaciones registradas.</td></tr>';
+
+  await dialogo.html(
+    'Ubicaciones registradas',
+    '<div class="modal-tabla-wrapper"><table class="tabla-modal-categorias"><thead><tr><th>ID Ubicacion</th><th>Nombre</th><th>Descripcion</th><th>Acciones</th></tr></thead><tbody>' +
+      filas +
+      '</tbody></table></div>',
+    'aviso',
+    [{ texto: 'Cerrar', valor: true, clase: 'modal-btn-principal' }],
+    'modal-categorias-vista'
+  );
+}
+
+async function editarUbicacion(id) {
+  const actual = ubicaciones.find(function (u) {
+    return String(u.id_ubicacion) === String(id);
+  });
+
+  if (!actual) {
+    await dialogo.alerta('No encontrada', 'No se encontro la ubicacion seleccionada.', 'aviso');
+    return;
+  }
+
+  const datos = await dialogo.formulario('Editar ubicacion', [
+    { name: 'nombre', label: 'Nombre de la ubicacion', type: 'text', value: actual.nombre, required: true },
+    { name: 'descripcion', label: 'Descripcion', type: 'text', value: actual.descripcion || '', required: false }
+  ]);
+
+  if (!datos) {
+    return;
+  }
+
+  const nombre = String(datos.nombre || '').trim();
+  const descripcion = String(datos.descripcion || '').trim();
+
+  if (!nombre) {
+    await dialogo.alerta('Campo requerido', 'El nombre de la ubicacion es obligatorio.', 'aviso');
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(API_BASE + '/ubicaciones/' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: nombre, descripcion: descripcion })
+    });
+
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'No se pudo editar ubicacion');
+    }
+
+    await cargarUbicaciones();
+    await dialogo.alerta('Ubicacion actualizada', 'La ubicacion se actualizo correctamente.', 'exito');
+  } catch (error) {
+    await dialogo.alerta('Error al editar ubicacion', error.message, 'error');
+  }
+}
+
+async function eliminarUbicacion(id) {
+  const confirmar = await dialogo.confirmacion('Eliminar ubicacion', 'Si eliminas esta ubicacion, no debe tener productos asociados. Deseas continuar?');
+  if (!confirmar) {
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(API_BASE + '/ubicaciones/' + id, { method: 'DELETE' });
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'No se pudo eliminar ubicacion');
+    }
+
+    await cargarUbicaciones();
+    await dialogo.alerta('Ubicacion eliminada', 'La ubicacion se elimino correctamente.', 'exito');
+  } catch (error) {
+    await dialogo.alerta('Error al eliminar ubicacion', error.message, 'error');
+  }
+}
+
+async function registrarUbicacion() {
+  const datos = await dialogo.formulario('Registrar ubicacion', [
+    { name: 'nombre', label: 'Nombre de la ubicacion', type: 'text', placeholder: 'Ejemplo: Bodega central', required: true },
+    { name: 'descripcion', label: 'Descripcion', type: 'text', placeholder: 'Detalle de la ubicacion', required: false }
+  ]);
+
+  if (!datos) {
+    return;
+  }
+
+  const nombre = String(datos.nombre || '').trim();
+  const descripcion = String(datos.descripcion || '').trim();
+
+  if (!nombre) {
+    await dialogo.alerta('Campo requerido', 'Escribe el nombre de la ubicacion.', 'aviso');
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(API_BASE + '/ubicaciones', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre: nombre, descripcion: descripcion })
+    });
+
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'No se pudo registrar ubicacion');
+    }
+
+    await cargarUbicaciones();
+    await dialogo.alerta('Ubicacion registrada', 'La ubicacion se guardo correctamente.', 'exito');
+  } catch (error) {
+    await dialogo.alerta('Error al registrar ubicacion', error.message, 'error');
+  }
+}
+
 function renderTabla(data) {
   if (!tablaBody) {
     return;
   }
 
   if (!data.length) {
-    tablaBody.innerHTML = '<tr><td colspan="15">No hay elementos para mostrar.</td></tr>';
+    tablaBody.innerHTML = '<tr><td colspan="12">No hay elementos para mostrar.</td></tr>';
     return;
   }
 
@@ -322,22 +498,23 @@ function renderTabla(data) {
     const fila = document.createElement('tr');
     fila.innerHTML =
       '<td>' + item.id_producto + '</td>' +
-      '<td>' + item.numero_item + '</td>' +
-      '<td>' + item.nombre + '</td>' +
+      '<td>' + (item.nombre || 'Sin nombre') + '</td>' +
       '<td>' + (item.marca || 'Sin marca') + '</td>' +
-      '<td>' + (item.modelo || 'Sin modelo') + '</td>' +
       '<td>' + item.stock_total + '</td>' +
       '<td>' + item.stock_minimo + '</td>' +
       '<td>' + item.id_categoria + '</td>' +
-      '<td>' + (item.categoria || 'Sin categoria') + '</td>' +
+      '<td>' + (item.categoria || 'Sin categoría') + '</td>' +
       '<td>' + item.id_ubicacion + '</td>' +
-      '<td>' + (item.ubicacion || 'Sin ubicacion') + '</td>' +
       '<td>' + item.prestamos_activos + '</td>' +
       '<td>' + item.disponibles + '</td>' +
       '<td><span class="estado ' + estadoClass + '">' + item.estado + '</span></td>' +
       '<td>' +
-      '<button type="button" class="btn-editar" data-action="editar" data-id="' + item.id_producto + '">Editar</button>' +
-      '<button type="button" class="btn-eliminar" data-action="eliminar" data-id="' + item.id_producto + '">Eliminar</button>' +
+      '<button type="button" class="btn-editar" data-action="editar" data-id="' + item.id_producto + '" title="Editar" aria-label="Editar producto ' + item.id_producto + '">' +
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>' +
+      '</button>' +
+      '<button type="button" class="btn-eliminar" data-action="eliminar" data-id="' + item.id_producto + '" title="Eliminar" aria-label="Eliminar producto ' + item.id_producto + '">' +
+      '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>' +
+      '</button>' +
       '</td>';
 
     tablaBody.appendChild(fila);
