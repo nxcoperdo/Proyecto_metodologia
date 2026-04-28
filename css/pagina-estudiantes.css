@@ -1,0 +1,60 @@
+@import url('pagina-gestion.css');
+
+.panel-filtros,
+.panel-solicitud {
+  height: 100%;
+}
+
+.filtros-extra {
+  margin-top: 1rem;
+}
+
+.filtros-extra label {
+  display: block;
+  color: #0b8f3a;
+  font-weight: bold;
+  margin-bottom: 0.4rem;
+}
+
+.filtros-extra select {
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #c8e6d0;
+  border-radius: 10px;
+  font-size: 1rem;
+  color: #163824;
+  background: #fff;
+}
+
+.formulario-solicitud {
+  display: grid;
+  gap: 1rem;
+}
+
+.formulario-solicitud .campo-grupo label {
+  display: block;
+  color: #0b8f3a;
+  font-weight: bold;
+  margin-bottom: 0.4rem;
+}
+
+.formulario-solicitud .campo-grupo input {
+  width: 100%;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid #c8e6d0;
+  border-radius: 10px;
+  font-size: 1rem;
+  color: #163824;
+}
+
+.formulario-solicitud .campo-grupo input:focus,
+.filtros-extra select:focus {
+  outline: none;
+  border-color: #0b8f3a;
+  box-shadow: 0 0 0 3px rgba(11, 143, 58, 0.15);
+}
+
+.panel-solicitud .btn-principal {
+  width: 100%;
+}
+

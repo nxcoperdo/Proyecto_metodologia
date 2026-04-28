@@ -40,6 +40,12 @@ if (formularioLogin) {
       mensajeLogin.className = 'mensaje-login exito';
 
       setTimeout(function () {
+        const rol = String(data.usuario.rol || '').toLowerCase();
+        if (rol.includes('estudiante')) {
+          window.location.href = 'pagina-estudiantes.html';
+          return;
+        }
+
         window.location.href = 'pagina-gestion.html';
       }, 600);
     } catch (error) {

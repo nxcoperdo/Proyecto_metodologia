@@ -215,6 +215,89 @@ app.delete('/api/ubicaciones/:id', async function (req, res) {
   }
 });
 
+// Rutas para ubicaciones (bodegas)
+app.get('/api/ubicaciones', async function (req, res) {
+  try {
+    const [rows] = await pool.query('SELECT id_ubicacion, nombre, descripcion FROM ubicacion ORDER BY id_ubicacion');
+    return res.json(rows);
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error consultando ubicaciones', detalle: error.message });
+  }
+});
+
+app.post('/api/ubicaciones', async function (req, res) {
+  try {
+    const nombre = String(req.body.nombre || '').trim();
+    const descripcion = String(req.body.descripcion || '').trim();
+
+    if (!nombre) {
+      return res.status(400).json({ ok: false, mensaje: 'El nombre de la ubicacion es obligatorio' });
+    }
+
+    const [existente] = await pool.query('SELECT id_ubicacion FROM ubicacion WHERE LOWER(TRIM(nombre)) = LOWER(TRIM(?)) LIMIT 1', [nombre]);
+    if (existente.length) {
+      return res.status(409).json({ ok: false, mensaje: 'Esa ubicacion ya existe' });
+    }
+
+    const [resultado] = await pool.query('INSERT INTO ubicacion (nombre, descripcion) VALUES (?, ?)', [nombre, descripcion]);
+    return res.status(201).json({ ok: true, mensaje: 'Ubicacion registrada', id_ubicacion: resultado.insertId });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error registrando ubicacion', detalle: error.message });
+  }
+});
+
+app.put('/api/ubicaciones/:id', async function (req, res) {
+  try {
+    const idUbicacion = Number(req.params.id);
+    const nombre = String(req.body.nombre || '').trim();
+    const descripcion = String(req.body.descripcion || '').trim();
+
+    if (!idUbicacion || !nombre) {
+      return res.status(400).json({ ok: false, mensaje: 'Datos invalidos para editar ubicacion' });
+    }
+
+    const [actual] = await pool.query('SELECT id_ubicacion FROM ubicacion WHERE id_ubicacion = ? LIMIT 1', [idUbicacion]);
+    if (!actual.length) {
+      return res.status(404).json({ ok: false, mensaje: 'Ubicacion no encontrada' });
+    }
+
+    const [duplicada] = await pool.query('SELECT id_ubicacion FROM ubicacion WHERE id_ubicacion <> ? AND LOWER(TRIM(nombre)) = LOWER(TRIM(?)) LIMIT 1', [idUbicacion, nombre]);
+    if (duplicada.length) {
+      return res.status(409).json({ ok: false, mensaje: 'Ya existe otra ubicacion con ese nombre' });
+    }
+
+    await pool.query('UPDATE ubicacion SET nombre = ?, descripcion = ? WHERE id_ubicacion = ?', [nombre, descripcion, idUbicacion]);
+    return res.json({ ok: true, mensaje: 'Ubicacion actualizada' });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error editando ubicacion', detalle: error.message });
+  }
+});
+
+app.delete('/api/ubicaciones/:id', async function (req, res) {
+  try {
+    const idUbicacion = Number(req.params.id);
+
+    if (!idUbicacion) {
+      return res.status(400).json({ ok: false, mensaje: 'ID de ubicacion invalido' });
+    }
+
+    const [usada] = await pool.query('SELECT COUNT(*) AS total FROM producto WHERE id_ubicacion = ?', [idUbicacion]);
+    if (Number(usada[0].total || 0) > 0) {
+      return res.status(409).json({ ok: false, mensaje: 'No puedes eliminar una ubicacion que tiene productos asociados' });
+    }
+
+    const [resultado] = await pool.query('DELETE FROM ubicacion WHERE id_ubicacion = ?', [idUbicacion]);
+
+    if (!resultado.affectedRows) {
+      return res.status(404).json({ ok: false, mensaje: 'Ubicacion no encontrada' });
+    }
+
+    return res.json({ ok: true, mensaje: 'Ubicacion eliminada' });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error eliminando ubicacion', detalle: error.message });
+  }
+});
+
 app.post('/api/login', async function (req, res) {
   try {
     const usuario = String(req.body.usuario || '').trim();

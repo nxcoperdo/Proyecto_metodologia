@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Pagina de Estudiantes - Sistema de Inventario Deportivo FET">
+  <title>Pagina de Estudiantes - Inventario Deportivo FET</title>
+  <link rel="icon" type="image/jpeg" href="img/fetlogo.jpg">
+  <link rel="stylesheet" href="css/pagina-estudiantes.css">
+</head>
+<body>
+  <header>
+    <nav class="navbar">
+      <div class="logo">
+        <img src="img/fetlogo.jpg" alt="Logo Universidad FET" class="logo-img">
+        <span class="logo-text">FET - Portal Estudiantil</span>
+      </div>
+      <div class="nav-right">
+        <span class="usuario-info" id="usuarioInfo">👤 Estudiante</span>
+        <a href="pagina-login.html" class="btn-salir" id="btnSalir">Cerrar sesión</a>
+      </div>
+    </nav>
+  </header>
+
+  <main>
+    <div class="container">
+      <section class="bienvenida">
+        <p class="etiqueta">Portal de préstamos deportivos FET</p>
+        <h1>Consulta productos y solicita préstamos</h1>
+        <p class="subtitulo">Aquí puedes ver los elementos disponibles, su categoría, cuántos hay, cuántos quedan y cuántos préstamos están activos.</p>
+      </section>
+
+      <section class="resumen-grid">
+        <article class="resumen-card">
+          <span class="resumen-numero" id="totalProductos">00</span>
+          <p>Productos disponibles</p>
+        </article>
+        <article class="resumen-card">
+          <span class="resumen-numero" id="totalPrestamos">00</span>
+          <p>Préstamos activos</p>
+        </article>
+        <article class="resumen-card">
+          <span class="resumen-numero" id="totalCategorias">00</span>
+          <p>Categorías</p>
+        </article>
+      </section>
+
+      <section class="dashboard-grid">
+        <article class="card panel-filtros">
+          <h2>Filtrar inventario</h2>
+          <p class="texto-panel">Busca por nombre, categoría o marca para encontrar el elemento que necesitas.</p>
+          <form class="buscador" id="formBusqueda">
+            <label for="busqueda" class="sr-only">Buscar elemento</label>
+            <input type="search" id="busqueda" placeholder="Buscar por nombre, categoría o marca">
+            <button type="submit" class="btn-principal">Buscar</button>
+          </form>
+          <div class="filtros-extra">
+            <label for="filtroCategoria">Filtrar por categoría</label>
+            <select id="filtroCategoria">
+              <option value="">Todas las categorías</option>
+            </select>
+          </div>
+        </article>
+
+        <article class="card panel-solicitud">
+          <h2>Solicitar préstamo</h2>
+          <p class="texto-panel">Completa los datos para registrar la solicitud del préstamo.</p>
+          <form id="formSolicitud" class="formulario-solicitud">
+            <div class="campo-grupo">
+              <label for="idProducto">ID del producto</label>
+              <input type="number" id="idProducto" min="1" placeholder="Ejemplo: 1" required>
+            </div>
+            <div class="campo-grupo">
+              <label for="cantidad">Cantidad</label>
+              <input type="number" id="cantidad" min="1" placeholder="Ejemplo: 1" required>
+            </div>
+            <div class="campo-grupo">
+              <label for="responsable">Tu nombre</label>
+              <input type="text" id="responsable" placeholder="Nombre del estudiante" required>
+            </div>
+            <button type="submit" class="btn-principal">Solicitar préstamo</button>
+          </form>
+        </article>
+      </section>
+
+      <section class="card inventario-seccion">
+        <div class="seccion-cabecera">
+          <div>
+            <h2>Inventario disponible</h2>
+            <p class="texto-panel">Consulta los productos, su disponibilidad y los préstamos activos.</p>
+          </div>
+        </div>
+
+        <div class="tabla-container">
+          <table class="tabla-inventario">
+            <thead>
+              <tr>
+                <th>ID Producto</th>
+                <th>Nombre</th>
+                <th>Marca</th>
+                <th>Categoría</th>
+                <th>Stock total</th>
+                <th>Préstamos activos</th>
+                <th>Disponibles</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyInventario">
+              <tr><td colspan="8">Cargando inventario...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script src="js/estudiantes.js"></script>
+</body>
+</html>
+
