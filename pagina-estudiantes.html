@@ -111,6 +111,40 @@
           </table>
         </div>
       </section>
+
+      <section class="card historial-seccion">
+        <div class="seccion-cabecera">
+          <div>
+            <h2>Historial de préstamos</h2>
+            <p class="texto-panel">Ve el estado de tus solicitudes y préstamos activos.</p>
+          </div>
+          <button type="button" class="btn-secundario" id="btnRefrescarHistorial" title="Refrescar historial">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icono-refrescar">
+              <polyline points="23 4 23 10 17 10"></polyline>
+              <polyline points="1 20 1 14 7 14"></polyline>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36M20.49 15a9 9 0 0 1-14.85 3.36"></path>
+            </svg>
+            <span>Refrescar</span>
+          </button>
+        </div>
+
+        <div class="tabla-container">
+          <table class="tabla-historial">
+            <thead>
+              <tr>
+                <th>ID Solicitud</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Fecha</th>
+                <th>Estado</th>
+              </tr>
+            </thead>
+            <tbody id="tbodyHistorial">
+              <tr><td colspan="5">Cargando historial...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
     </div>
   </main>
 
