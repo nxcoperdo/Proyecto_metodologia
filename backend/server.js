@@ -21,12 +21,12 @@ app.get('/api/health', function (req, res) {
 });
 
 app.get('/api/db-status', async function (req, res) {
-  try {
-    await probarConexion();
-    res.json({ ok: true, mensaje: 'Conexion a base de datos exitosa' });
-  } catch (error) {
-    res.status(500).json({ ok: false, mensaje: 'No se pudo conectar a la base de datos', detalle: error.message });
-  }
+   try {
+     await probarConexion();
+     res.json({ ok: true, mensaje: 'Conexion a base de datos exitosa' });
+   } catch (error) {
+     res.status(500).json({ ok: false, mensaje: 'No se pudo conectar a la base de datos', detalle: error.message });
+   }
 });
 
 app.get('/api/debug/ubicaciones-estructura', async function (req, res) {
@@ -47,6 +47,21 @@ app.get('/api/debug/ubicaciones-estructura', async function (req, res) {
     });
   } catch (error) {
     return res.status(500).json({ ok: false, mensaje: 'Error consultando ubicacion', detalle: error.message });
+  }
+});
+
+app.get('/api/debug/tabla-usuario', async function (req, res) {
+  try {
+    const [columnInfo] = await pool.query("SELECT COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = 'usuario'");
+    const [datos] = await pool.query('SELECT correo, nu_identificacion FROM usuario LIMIT 20');
+    
+    return res.json({
+      ok: true,
+      estructura: columnInfo,
+      primeros_registros: datos
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error', detalle: error.message });
   }
 });
 
@@ -307,14 +322,41 @@ app.post('/api/login', async function (req, res) {
       return res.status(400).json({ ok: false, mensaje: 'Usuario y contrasena son obligatorios' });
     }
 
-    const sql = 'SELECT id_usuario_sistema, nombre, apellido, usuario, rol, correo FROM usuario_sistema WHERE usuario = ? AND contrasena = ? LIMIT 1';
-    const [rows] = await pool.query(sql, [usuario, password]);
+    const sqlSistema = 'SELECT id_usuario_sistema, nombre, apellido, usuario, rol, correo FROM usuario_sistema WHERE usuario = ? AND contrasena = ? LIMIT 1';
+    const [rowsSistema] = await pool.query(sqlSistema, [usuario, password]);
 
-    if (!rows.length) {
+    if (rowsSistema.length) {
+      return res.json({
+        ok: true,
+        usuario: {
+          ...rowsSistema[0],
+          tipo_usuario: 'sistema'
+        }
+      });
+    }
+
+    const sqlEstudiante = 'SELECT * FROM usuario WHERE correo = ? AND nu_identificacion = ? LIMIT 1';
+    const [rowsEstudiante] = await pool.query(sqlEstudiante, [usuario, password]);
+
+    if (!rowsEstudiante.length) {
       return res.status(401).json({ ok: false, mensaje: 'Credenciales invalidas' });
     }
 
-    return res.json({ ok: true, usuario: rows[0] });
+    const estudiante = rowsEstudiante[0];
+
+    return res.json({
+      ok: true,
+      usuario: {
+        id_usuario: estudiante.id_usuario || estudiante.id || estudiante.id_estudiante || null,
+        nombre: estudiante.nombre || '',
+        apellido: estudiante.apellido || '',
+        usuario: estudiante.correo || usuario,
+        rol: estudiante.rol || 'estudiante',
+        correo: estudiante.correo || usuario,
+        tipo_usuario: 'estudiante',
+        estudiante: estudiante
+      }
+    });
   } catch (error) {
     return res.status(500).json({ ok: false, mensaje: 'Error en login', detalle: error.message });
   }
@@ -547,20 +589,143 @@ app.post('/api/prestamos', async function (req, res) {
       return res.status(404).json({ ok: false, mensaje: 'Producto no encontrado' });
     }
 
-    const prestamosActivos = await obtenerPrestamosActivosPorProducto(pool, idProducto);
+    const sql = "INSERT INTO salida_inv (fecha, cantidad, tipo_salida, id_producto, responsable_entrega) VALUES (CURDATE(), ?, 'Solicitud Pendiente', ?, ?)";
+    const [resultado] = await pool.query(sql, [cantidad, idProducto, responsable]);
+
+    return res.status(201).json({
+      ok: true,
+      mensaje: 'Solicitud de préstamo registrada. Espera a que un administrador la apruebe.',
+      id_solicitud: resultado.insertId
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error registrando prestamo', detalle: error.message });
+  }
+});
+
+// Obtener solicitudes de préstamo pendientes
+app.get('/api/solicitudes-pendientes', async function (req, res) {
+  try {
+    const sql = `SELECT 
+      si.id_salida, si.fecha, si.cantidad, si.responsable_entrega,
+      p.id_producto, p.nombre, p.marca,
+      c.nombre AS categoria
+    FROM salida_inv si
+    JOIN producto p ON si.id_producto = p.id_producto
+    LEFT JOIN categoria c ON p.id_categoria = c.id_categoria
+    WHERE si.tipo_salida = 'Solicitud Pendiente'
+    ORDER BY si.fecha DESC`;
+    
+    const [rows] = await pool.query(sql);
+    return res.json(rows);
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error consultando solicitudes', detalle: error.message });
+  }
+});
+
+app.get('/api/solicitudes-estudiante', async function (req, res) {
+  try {
+    const responsable = String(req.query.responsable || '').trim();
+    const desdeId = Number(req.query.desde_id || 0);
+
+    if (!responsable) {
+      return res.status(400).json({ ok: false, mensaje: 'El responsable es obligatorio' });
+    }
+
+    let sql = `SELECT si.id_salida, si.fecha, si.cantidad, si.tipo_salida, si.id_producto, p.nombre AS producto
+      FROM salida_inv si
+      JOIN producto p ON si.id_producto = p.id_producto
+      WHERE si.responsable_entrega = ?`;
+    const params = [responsable];
+
+    if (desdeId > 0) {
+      sql += ' AND si.id_salida > ?';
+      params.push(desdeId);
+    }
+
+    sql += ' ORDER BY si.id_salida DESC LIMIT 50';
+
+    const [rows] = await pool.query(sql, params);
+    return res.json({ ok: true, solicitudes: rows });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error consultando solicitudes del estudiante', detalle: error.message });
+  }
+});
+
+// Aprobar solicitud de préstamo
+app.put('/api/solicitudes-pendientes/:id/aprobar', async function (req, res) {
+  const conexion = await pool.getConnection();
+  try {
+    const idSalida = Number(req.params.id);
+
+    if (!idSalida) {
+      conexion.release();
+      return res.status(400).json({ ok: false, mensaje: 'ID invalido' });
+    }
+
+    await conexion.beginTransaction();
+
+    const [solicitudRows] = await conexion.query('SELECT * FROM salida_inv WHERE id_salida = ? AND tipo_salida = ? LIMIT 1', [idSalida, 'Solicitud Pendiente']);
+    
+    if (!solicitudRows.length) {
+      await conexion.rollback();
+      conexion.release();
+      return res.status(404).json({ ok: false, mensaje: 'Solicitud no encontrada' });
+    }
+
+    const solicitud = solicitudRows[0];
+    const idProducto = solicitud.id_producto;
+    const cantidad = solicitud.cantidad;
+
+    const [productoRows] = await conexion.query('SELECT stock_total FROM producto WHERE id_producto = ? LIMIT 1', [idProducto]);
+    if (!productoRows.length) {
+      await conexion.rollback();
+      conexion.release();
+      return res.status(404).json({ ok: false, mensaje: 'Producto no encontrado' });
+    }
+
+    const prestamosActivos = await obtenerPrestamosActivosPorProducto(conexion, idProducto);
     const stockTotal = Number(productoRows[0].stock_total || 0);
     const disponibles = stockTotal - prestamosActivos;
 
     if (cantidad > disponibles) {
-      return res.status(400).json({ ok: false, mensaje: 'No hay unidades suficientes para prestamo' });
+      await conexion.rollback();
+      conexion.release();
+      return res.status(400).json({ ok: false, mensaje: 'No hay unidades suficientes disponibles' });
     }
 
-    const sql = "INSERT INTO salida_inv (fecha, cantidad, tipo_salida, id_producto, responsable_entrega) VALUES (CURDATE(), ?, 'Prestamo', ?, ?)";
-    await pool.query(sql, [cantidad, idProducto, responsable]);
+    await conexion.query('UPDATE salida_inv SET tipo_salida = ? WHERE id_salida = ?', ['Prestamo', idSalida]);
 
-    return res.status(201).json({ ok: true, mensaje: 'Prestamo registrado' });
+    await conexion.commit();
+    conexion.release();
+
+    return res.json({ ok: true, mensaje: 'Solicitud aprobada y registrada como préstamo' });
   } catch (error) {
-    return res.status(500).json({ ok: false, mensaje: 'Error registrando prestamo', detalle: error.message });
+    await conexion.rollback();
+    conexion.release();
+    return res.status(500).json({ ok: false, mensaje: 'Error aprobando solicitud', detalle: error.message });
+  }
+});
+
+// Rechazar solicitud de préstamo
+app.put('/api/solicitudes-pendientes/:id/rechazar', async function (req, res) {
+  try {
+    const idSalida = Number(req.params.id);
+
+    if (!idSalida) {
+      return res.status(400).json({ ok: false, mensaje: 'ID invalido' });
+    }
+
+    const [solicitudRows] = await pool.query('SELECT * FROM salida_inv WHERE id_salida = ? AND tipo_salida = ? LIMIT 1', [idSalida, 'Solicitud Pendiente']);
+    
+    if (!solicitudRows.length) {
+      return res.status(404).json({ ok: false, mensaje: 'Solicitud no encontrada' });
+    }
+
+    await pool.query('DELETE FROM salida_inv WHERE id_salida = ?', [idSalida]);
+
+    return res.json({ ok: true, mensaje: 'Solicitud rechazada y eliminada' });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error rechazando solicitud', detalle: error.message });
   }
 });
 

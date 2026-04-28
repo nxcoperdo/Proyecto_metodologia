@@ -40,12 +40,16 @@ if (formularioLogin) {
       mensajeLogin.className = 'mensaje-login exito';
 
       setTimeout(function () {
-        const rol = String(data.usuario.rol || '').toLowerCase();
-        if (rol.includes('estudiante')) {
+        const tipoUsuario = String((data.usuario && data.usuario.tipo_usuario) || '').toLowerCase();
+        const rol = String((data.usuario && data.usuario.rol) || '').toLowerCase();
+
+        // Redirigir según tipo de usuario: estudiantes -> pagina-estudiantes, sistema -> pagina-gestion
+        if (tipoUsuario.includes('estudiante') || rol.includes('estudiante') || rol.includes('student')) {
           window.location.href = 'pagina-estudiantes.html';
           return;
         }
 
+        // por defecto enviar al panel de gestión
         window.location.href = 'pagina-gestion.html';
       }, 600);
     } catch (error) {

@@ -52,6 +52,7 @@ async function iniciar() {
   await cargarCategorias();
   await cargarUbicaciones();
   await cargarInventario();
+  await cargarSolicitudes();
 }
 
 function pintarUsuario() {
@@ -132,6 +133,30 @@ if (inputBusqueda) {
     if (inputBusqueda.value.trim() === '') {
       renderTabla(inventario);
       actualizarResumen(inventario);
+    }
+  });
+}
+
+const btnRefrescarSolicitudes = document.getElementById('btnRefrescarSolicitudes');
+if (btnRefrescarSolicitudes) {
+  btnRefrescarSolicitudes.addEventListener('click', cargarSolicitudes);
+}
+
+const tablaSolicitudes = document.getElementById('tablaSolicitudes');
+if (tablaSolicitudes) {
+  tablaSolicitudes.addEventListener('click', function (evento) {
+    const boton = evento.target.closest('button');
+    if (!boton) {
+      return;
+    }
+
+    const accion = boton.getAttribute('data-action');
+    const id = boton.getAttribute('data-id');
+
+    if (accion === 'aprobar-solicitud') {
+      aprobarSolicitud(id);
+    } else if (accion === 'rechazar-solicitud') {
+      rechazarSolicitud(id);
     }
   });
 }
@@ -989,5 +1014,137 @@ function crearSistemaDialogos() {
     formulario: formulario,
     html: html
   };
+}
+
+// ========== FUNCIONES PARA SOLICITUDES DE PRÉSTAMO ==========
+
+let solicitudes = [];
+
+async function cargarSolicitudes() {
+  try {
+    const respuesta = await fetch(API_BASE + '/solicitudes-pendientes');
+    const data = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(data.mensaje || 'No se pudieron cargar solicitudes');
+    }
+
+    solicitudes = data;
+    renderTablaSolicitudes(solicitudes);
+  } catch (error) {
+    const tbodySolicitudes = document.getElementById('tbodySolicitudes');
+    if (tbodySolicitudes) {
+      tbodySolicitudes.innerHTML = '<tr><td colspan="8">Error cargando solicitudes: ' + escaparAtributo(error.message) + '</td></tr>';
+    }
+    await dialogo.alerta('Error de conexion', 'No se pudieron cargar las solicitudes: ' + error.message, 'error');
+  }
+}
+
+function renderTablaSolicitudes(listaSolicitudes) {
+  const tbodySolicitudes = document.getElementById('tbodySolicitudes');
+  if (!tbodySolicitudes) {
+    return;
+  }
+
+  const filas = listaSolicitudes.length
+    ? listaSolicitudes
+        .map(function (solicitud) {
+          return (
+            '<tr>' +
+            '<td>' + solicitud.id_salida + '</td>' +
+            '<td>' + (solicitud.fecha ? solicitud.fecha.substring(0, 10) : 'N/A') + '</td>' +
+            '<td>' + escaparAtributo(solicitud.responsable_entrega) + '</td>' +
+            '<td>' + escaparAtributo(solicitud.nombre) + '</td>' +
+            '<td>' + escaparAtributo(solicitud.marca) + '</td>' +
+            '<td>' + escaparAtributo(solicitud.categoria || 'Sin categoría') + '</td>' +
+            '<td>' + solicitud.cantidad + '</td>' +
+            '<td>' +
+            '<button type="button" class="btn-aceptar" data-action="aprobar-solicitud" data-id="' + solicitud.id_salida + '" title="Aprobar solicitud">✓ Aprobar</button>' +
+            '<button type="button" class="btn-rechazar" data-action="rechazar-solicitud" data-id="' + solicitud.id_salida + '" title="Rechazar solicitud">✗ Rechazar</button>' +
+            '</td>' +
+            '</tr>'
+          );
+        })
+        .join('')
+    : '<tr><td colspan="8">No hay solicitudes de préstamo pendientes.</td></tr>';
+
+  tbodySolicitudes.innerHTML = filas;
+}
+
+async function aprobarSolicitud(id) {
+  const idSolicitud = Number(id);
+  if (!idSolicitud) {
+    await dialogo.alerta('Error', 'ID de solicitud inválido', 'error');
+    return;
+  }
+
+  const confirmacion = await dialogo.confirmacion(
+    'Aprobar solicitud',
+    '¿Deseas aprobar esta solicitud de préstamo?',
+    'pregunta'
+  );
+
+  if (!confirmacion) {
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(API_BASE + '/solicitudes-pendientes/' + idSolicitud + '/aprobar', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(data.mensaje || 'Error aprobando solicitud');
+    }
+
+    await dialogo.alerta('Éxito', data.mensaje, 'aviso');
+    await cargarSolicitudes();
+    await cargarInventario();
+  } catch (error) {
+    await dialogo.alerta('Error', 'Error aprobando solicitud: ' + error.message, 'error');
+  }
+}
+
+async function rechazarSolicitud(id) {
+  const idSolicitud = Number(id);
+  if (!idSolicitud) {
+    await dialogo.alerta('Error', 'ID de solicitud inválido', 'error');
+    return;
+  }
+
+  const confirmacion = await dialogo.confirmacion(
+    'Rechazar solicitud',
+    '¿Deseas rechazar y eliminar esta solicitud de préstamo?',
+    'pregunta'
+  );
+
+  if (!confirmacion) {
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(API_BASE + '/solicitudes-pendientes/' + idSolicitud + '/rechazar', {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(data.mensaje || 'Error rechazando solicitud');
+    }
+
+    await dialogo.alerta('Éxito', data.mensaje, 'aviso');
+    await cargarSolicitudes();
+  } catch (error) {
+    await dialogo.alerta('Error', 'Error rechazando solicitud: ' + error.message, 'error');
+  }
 }
 

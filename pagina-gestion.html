@@ -127,6 +127,38 @@
       <section class="card inventario-seccion">
         <div class="seccion-cabecera">
           <div>
+            <h2>Solicitudes de préstamo pendientes</h2>
+            <p class="texto-panel">Visualiza y gestiona las solicitudes de préstamo de los estudiantes.</p>
+          </div>
+          <button type="button" class="btn-principal" id="btnRefrescarSolicitudes">Refrescar solicitudes</button>
+        </div>
+
+        <div class="tabla-container">
+          <table class="tabla-inventario" id="tablaSolicitudes">
+            <thead>
+              <tr>
+                <th>ID Solicitud</th>
+                <th>Fecha</th>
+                <th>Estudiante</th>
+                <th>Producto</th>
+                <th>Marca</th>
+                <th>Categoría</th>
+                <th>Cantidad</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbodySolicitudes">
+              <tr>
+                <td colspan="8">Cargando solicitudes pendientes...</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="card inventario-seccion">
+        <div class="seccion-cabecera">
+          <div>
             <h2>Inventario actual</h2>
             <p class="texto-panel">Tabla base para revisar el estado de los elementos deportivos.</p>
           </div>

@@ -6,6 +6,14 @@ if (acceso !== 'si') {
   window.location.href = 'pagina-login.html';
 }
 
+function escaparAtributo(valor) {
+  return String(valor)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 const usuarioInfo = document.getElementById('usuarioInfo');
 const btnSalir = document.getElementById('btnSalir');
 const tbodyInventario = document.getElementById('tbodyInventario');
@@ -23,11 +31,16 @@ const totalCategorias = document.getElementById('totalCategorias');
 let inventario = [];
 let categorias = [];
 let inventarioFiltrado = [];
+let intervalNotificaciones = null;
 
+const DURACION_POLLING_MS = 15000;
+
+const dialogo = crearSistemaDialogos();
 iniciar();
 
 async function iniciar() {
   pintarUsuario();
+  configurarResponsablePorSesion();
   if (btnSalir) {
     btnSalir.addEventListener('click', salir);
   }
@@ -53,6 +66,8 @@ async function iniciar() {
 
   await cargarCategorias();
   await cargarInventario();
+  await revisarNotificacionesAprobacion();
+  iniciarPollingNotificaciones();
 }
 
 function pintarUsuario() {
@@ -72,8 +87,131 @@ function pintarUsuario() {
 }
 
 function salir() {
+  detenerPollingNotificaciones();
   sessionStorage.removeItem('accesoFET');
   sessionStorage.removeItem('usuarioFET');
+}
+
+function configurarResponsablePorSesion() {
+  if (!inputResponsable || !usuarioSesion) {
+    return;
+  }
+
+  try {
+    const user = JSON.parse(usuarioSesion);
+    const nombreCompleto = [user.nombre, user.apellido].filter(Boolean).join(' ').trim();
+    if (nombreCompleto) {
+      inputResponsable.value = nombreCompleto;
+    }
+  } catch (error) {
+    // Si no se puede parsear usuario, se deja el campo para ingreso manual.
+  }
+}
+
+function obtenerResponsableNotificacion() {
+  const valorInput = String(inputResponsable ? inputResponsable.value : '').trim();
+  if (valorInput) {
+    return valorInput;
+  }
+
+  if (!usuarioSesion) {
+    return '';
+  }
+
+  try {
+    const user = JSON.parse(usuarioSesion);
+    return [user.nombre, user.apellido].filter(Boolean).join(' ').trim();
+  } catch (error) {
+    return '';
+  }
+}
+
+function obtenerClaveNotificaciones() {
+  const responsable = obtenerResponsableNotificacion();
+  return 'fet_notifs_aprobadas_' + (responsable || 'anonimo').toLowerCase();
+}
+
+function obtenerIdsNotificados() {
+  try {
+    const clave = obtenerClaveNotificaciones();
+    const valor = localStorage.getItem(clave);
+    const lista = valor ? JSON.parse(valor) : [];
+    return Array.isArray(lista) ? lista.map(Number).filter(Boolean) : [];
+  } catch (error) {
+    return [];
+  }
+}
+
+function guardarIdsNotificados(listaIds) {
+  try {
+    const clave = obtenerClaveNotificaciones();
+    localStorage.setItem(clave, JSON.stringify(listaIds));
+  } catch (error) {
+    // Si localStorage no está disponible, simplemente no se persiste.
+  }
+}
+
+function iniciarPollingNotificaciones() {
+  detenerPollingNotificaciones();
+  intervalNotificaciones = setInterval(function () {
+    revisarNotificacionesAprobacion();
+  }, DURACION_POLLING_MS);
+}
+
+function detenerPollingNotificaciones() {
+  if (!intervalNotificaciones) {
+    return;
+  }
+
+  clearInterval(intervalNotificaciones);
+  intervalNotificaciones = null;
+}
+
+async function revisarNotificacionesAprobacion() {
+  const responsable = obtenerResponsableNotificacion();
+  if (!responsable) {
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(API_BASE + '/solicitudes-estudiante?responsable=' + encodeURIComponent(responsable));
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      return;
+    }
+
+    const solicitudes = Array.isArray(data.solicitudes) ? data.solicitudes : [];
+    const idsNotificados = obtenerIdsNotificados();
+    const setNotificados = new Set(idsNotificados);
+
+    const aprobadasNuevas = solicitudes.filter(function (item) {
+      return String(item.tipo_salida || '').toLowerCase() === 'prestamo' && !setNotificados.has(Number(item.id_salida));
+    });
+
+    if (!aprobadasNuevas.length) {
+      return;
+    }
+
+    const lineas = aprobadasNuevas.slice(0, 3).map(function (item) {
+      return '- Solicitud #' + item.id_salida + ': ' + (item.producto || ('Producto ' + item.id_producto)) + ' x' + item.cantidad;
+    }).join('\n');
+
+    const mensajeBase = aprobadasNuevas.length === 1
+      ? 'Tu solicitud fue aprobada:\n' + lineas
+      : 'Tienes ' + aprobadasNuevas.length + ' solicitudes aprobadas:\n' + lineas;
+
+    await dialogo.alerta('Solicitud aprobada', mensajeBase, 'exito');
+
+    const nuevosIds = aprobadasNuevas.map(function (item) {
+      return Number(item.id_salida);
+    });
+    const idsActualizados = Array.from(new Set(idsNotificados.concat(nuevosIds))).slice(-200);
+    guardarIdsNotificados(idsActualizados);
+    await cargarInventario();
+  } catch (error) {
+    // Fallo silencioso para no interrumpir la experiencia del estudiante.
+  }
 }
 
 async function cargarCategorias() {
@@ -202,9 +340,12 @@ async function registrarSolicitud(evento) {
   const responsable = String(inputResponsable ? inputResponsable.value : '').trim();
 
   if (!idProducto || cantidad < 1 || !responsable) {
-    alert('Completa el ID del producto, la cantidad y tu nombre.');
+    await dialogo.alerta('Datos incompletos', 'Completa el ID del producto, la cantidad y tu nombre.', 'aviso');
     return;
   }
+
+  const confirmar = await dialogo.confirmacion('Confirmar solicitud', '¿Deseas enviar esta solicitud de préstamo?');
+  if (!confirmar) return;
 
   try {
     const respuesta = await fetch(API_BASE + '/prestamos', {
@@ -225,11 +366,211 @@ async function registrarSolicitud(evento) {
       throw new Error(data.mensaje || 'No se pudo registrar el préstamo');
     }
 
-    if (formSolicitud) formSolicitud.reset();
+    if (formSolicitud) {
+      formSolicitud.reset();
+      configurarResponsablePorSesion();
+    }
     await cargarInventario();
-    alert('Solicitud registrada correctamente.');
+    await dialogo.alerta('Solicitud registrada', data.mensaje || 'Solicitud registrada correctamente. Espera aprobación del administrador.', 'exito');
+    await revisarNotificacionesAprobacion();
   } catch (error) {
-    alert(error.message);
+    await dialogo.alerta('Error', error.message, 'error');
   }
 }
+
+    function crearSistemaDialogos() {
+      const overlay = document.createElement('div');
+      overlay.className = 'modal-overlay';
+      overlay.innerHTML =
+        '<div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">' +
+        '<div class="modal-encabezado">' +
+        '<h3 id="modalTitulo" class="modal-titulo"></h3>' +
+        '<button type="button" class="modal-cerrar" aria-label="Cerrar">x</button>' +
+        '</div>' +
+        '<div class="modal-contenido"></div>' +
+        '<div class="modal-acciones"></div>' +
+        '</div>';
+
+      document.body.appendChild(overlay);
+
+      const caja = overlay.querySelector('.modal-caja');
+      const titulo = overlay.querySelector('.modal-titulo');
+      const contenido = overlay.querySelector('.modal-contenido');
+      const acciones = overlay.querySelector('.modal-acciones');
+      const cerrarBtn = overlay.querySelector('.modal-cerrar');
+
+      function abrir(config) {
+        overlay.classList.remove('cerrando');
+        titulo.textContent = config.titulo || 'Mensaje';
+        contenido.innerHTML = '';
+        acciones.innerHTML = '';
+        caja.classList.remove('modal-exito', 'modal-error', 'modal-aviso', 'modal-categorias-vista');
+
+        if (config.tipo) {
+          caja.classList.add('modal-' + config.tipo);
+        }
+
+        if (config.claseCaja) {
+          caja.classList.add(config.claseCaja);
+        }
+
+        if (config.contenidoHTML) {
+          contenido.innerHTML = config.contenidoHTML;
+        } else {
+          const p = document.createElement('p');
+          p.textContent = config.mensaje || '';
+          contenido.appendChild(p);
+        }
+
+        const botones = Array.isArray(config.botones) && config.botones.length > 0 ? config.botones : [{ texto: 'Aceptar', valor: true, clase: 'modal-btn-principal' }];
+
+        botones.forEach(function (btn) {
+          const boton = document.createElement('button');
+          boton.type = 'button';
+          boton.className = btn.clase || 'modal-btn-principal';
+          boton.textContent = btn.texto;
+          boton.addEventListener('click', function () {
+            cerrar(btn.valor);
+          });
+          acciones.appendChild(boton);
+        });
+
+        overlay.classList.add('activo');
+        document.body.classList.add('modal-abierto');
+        setTimeout(function () {
+          const primerInput = contenido.querySelector('input, select, textarea');
+          if (primerInput) {
+            primerInput.focus();
+          }
+        }, 40);
+
+        return new Promise(function (resolve) {
+          overlay.dataset.resolve = 'si';
+          overlay._resolver = resolve;
+        });
+      }
+
+      function cerrar(valor) {
+        if (!overlay.classList.contains('activo')) {
+          return;
+        }
+
+        overlay.classList.add('cerrando');
+
+        setTimeout(function () {
+          overlay.classList.remove('activo');
+          overlay.classList.remove('cerrando');
+          document.body.classList.remove('modal-abierto');
+
+          if (overlay.dataset.resolve === 'si' && typeof overlay._resolver === 'function') {
+            const resolver = overlay._resolver;
+            overlay.dataset.resolve = '';
+            overlay._resolver = null;
+            resolver(valor);
+          }
+        }, 180);
+      }
+
+      cerrarBtn.addEventListener('click', function () {
+        cerrar(null);
+      });
+
+      overlay.addEventListener('click', function (evento) {
+        if (evento.target === overlay) {
+          cerrar(null);
+        }
+      });
+
+      document.addEventListener('keydown', function (evento) {
+        if (evento.key === 'Escape' && overlay.classList.contains('activo')) {
+          cerrar(null);
+        }
+      });
+
+      async function alerta(tituloTexto, mensajeTexto, tipo) {
+        await abrir({
+          titulo: tituloTexto,
+          mensaje: mensajeTexto,
+          tipo: tipo || 'aviso',
+          botones: [{ texto: 'Aceptar', valor: true, clase: 'modal-btn-principal' }]
+        });
+      }
+
+      async function confirmacion(tituloTexto, mensajeTexto) {
+        const resultado = await abrir({
+          titulo: tituloTexto,
+          mensaje: mensajeTexto,
+          tipo: 'aviso',
+          botones: [
+            { texto: 'Cancelar', valor: false, clase: 'modal-btn-secundario' },
+            { texto: 'Continuar', valor: true, clase: 'modal-btn-principal' }
+          ]
+        });
+
+        return resultado === true;
+      }
+
+      async function formulario(tituloTexto, campos) {
+        let html = '<form class="modal-form" id="modalForm">';
+
+        campos.forEach(function (campo) {
+          const valor = campo.value ? escaparAtributo(campo.value) : '';
+          const placeholder = campo.placeholder ? ' placeholder="' + escaparAtributo(campo.placeholder) + '"' : '';
+          const min = typeof campo.min !== 'undefined' ? ' min="' + campo.min + '"' : '';
+          const required = campo.required ? ' required' : '';
+          const nombreCampo = escaparAtributo(campo.name || 'campo');
+          const tipoCampo = escaparAtributo(campo.type || 'text');
+          html +=
+            '<label class="modal-label" for="modal_' + nombreCampo + '">' + campo.label + '</label>' +
+            '<input class="modal-input" id="modal_' + nombreCampo + '" name="' + nombreCampo + '" type="' + tipoCampo + '" value="' + valor + '"' + placeholder + min + required + '>';
+        });
+
+        html += '</form>';
+
+        const resultado = await abrir({
+          titulo: tituloTexto,
+          contenidoHTML: html,
+          tipo: 'aviso',
+          botones: [
+            { texto: 'Cancelar', valor: null, clase: 'modal-btn-secundario' },
+            { texto: 'Guardar', valor: 'submit', clase: 'modal-btn-principal' }
+          ]
+        });
+
+        if (resultado !== 'submit') {
+          return null;
+        }
+
+        const form = contenido.querySelector('#modalForm');
+        if (!form || !form.reportValidity()) {
+          return null;
+        }
+
+        const formData = new FormData(form);
+        const salida = {};
+
+        campos.forEach(function (campo) {
+          salida[campo.name] = String(formData.get(campo.name) || '').trim();
+        });
+
+        return salida;
+      }
+
+      async function html(tituloTexto, contenidoHTML, tipo, botones, claseCaja) {
+        await abrir({
+          titulo: tituloTexto,
+          contenidoHTML: contenidoHTML,
+          tipo: tipo || 'aviso',
+          botones: botones || [{ texto: 'Cerrar', valor: true, clase: 'modal-btn-principal' }],
+          claseCaja: claseCaja || ''
+        });
+      }
+
+      return {
+        alerta: alerta,
+        confirmacion: confirmacion,
+        formulario: formulario,
+        html: html
+      };
+    }
 
