@@ -348,12 +348,12 @@ app.post('/api/login', async function (req, res) {
       ok: true,
       usuario: {
         id_usuario: estudiante.id_usuario || estudiante.id || estudiante.id_estudiante || null,
-        nombre: estudiante.nombre || '',
-        apellido: estudiante.apellido || '',
+        nombres_apellidos: estudiante.nombres_apellidos || '',
         usuario: estudiante.correo || usuario,
-        rol: estudiante.rol || 'estudiante',
-        correo: estudiante.correo || usuario,
         tipo_usuario: 'estudiante',
+        correo: estudiante.correo || usuario,
+        carrera: estudiante.carrera || '',
+        semestre: estudiante.semestre || 0,
         estudiante: estudiante
       }
     });
@@ -634,7 +634,7 @@ app.get('/api/solicitudes-estudiante', async function (req, res) {
     let sql = `SELECT si.id_salida, si.fecha, si.cantidad, si.tipo_salida, si.id_producto, p.nombre AS producto
       FROM salida_inv si
       JOIN producto p ON si.id_producto = p.id_producto
-      WHERE si.responsable_entrega = ?`;
+      WHERE LOWER(si.responsable_entrega) = LOWER(?)`;
     const params = [responsable];
 
     if (desdeId > 0) {

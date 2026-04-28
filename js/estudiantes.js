@@ -85,8 +85,8 @@ function pintarUsuario() {
 
   try {
     const user = JSON.parse(usuarioSesion);
-    const nombreCompleto = [user.nombre, user.apellido].filter(Boolean).join(' ');
-    usuarioInfo.textContent = nombreCompleto ? `${nombreCompleto} (${user.rol || 'estudiante'})` : '👤 Estudiante';
+    const nombreCompleto = user.nombres_apellidos || (user.nombre && user.apellido ? [user.nombre, user.apellido].filter(Boolean).join(' ') : '');
+    usuarioInfo.textContent = nombreCompleto ? `${nombreCompleto} (${user.tipo_usuario || 'estudiante'})` : '👤 Estudiante';
   } catch (error) {
     usuarioInfo.textContent = '👤 Estudiante';
   }
@@ -105,7 +105,7 @@ function configurarResponsablePorSesion() {
 
   try {
     const user = JSON.parse(usuarioSesion);
-    const nombreCompleto = [user.nombre, user.apellido].filter(Boolean).join(' ').trim();
+    const nombreCompleto = user.nombres_apellidos || (user.nombre && user.apellido ? [user.nombre, user.apellido].filter(Boolean).join(' ') : '');
     if (nombreCompleto) {
       inputResponsable.value = nombreCompleto;
     }
@@ -126,7 +126,7 @@ function obtenerResponsableNotificacion() {
 
   try {
     const user = JSON.parse(usuarioSesion);
-    return [user.nombre, user.apellido].filter(Boolean).join(' ').trim();
+    return user.nombres_apellidos || (user.nombre && user.apellido ? [user.nombre, user.apellido].filter(Boolean).join(' ').trim() : '');
   } catch (error) {
     return '';
   }
