@@ -1,45 +1,94 @@
 const acceso = sessionStorage.getItem('accesoFET');
+const usuarioSesion = sessionStorage.getItem('usuarioFET');
+const API_BASE = 'http://localhost:3000/api';
 
 if (acceso !== 'si') {
   window.location.href = 'pagina-login.html';
 }
 
 const btnSalir = document.getElementById('btnSalir');
+const usuarioInfo = document.getElementById('usuarioInfo');
+const tablaBody = document.getElementById('tbodyInventario');
+const formulario = document.querySelector('.formulario-elemento');
+const btnVerCategorias = document.getElementById('btnVerCategorias');
+const btnRegistrarCategoria = document.getElementById('btnRegistrarCategoria');
+const formProducto = document.getElementById('formProducto');
+const inputNumeroItem = document.getElementById('numeroItem');
+const inputElemento = document.getElementById('elemento');
+const inputStockMinimo = document.getElementById('stockMinimo');
+const inputMarca = document.getElementById('marca');
+const inputModelo = document.getElementById('modelo');
+const inputCategoria = document.getElementById('categoria');
+const inputUbicacion = document.getElementById('ubicacion');
+const inputTotal = document.getElementById('total');
+const btnGuardar = document.getElementById('btnGuardarProducto');
+const btnPrestamo = document.getElementById('btnPrestamo');
+const btnDevolucion = document.getElementById('btnDevolucion');
+const formBusqueda = document.querySelector('.buscador');
+const inputBusqueda = document.getElementById('busqueda');
+const resumenNumeros = document.querySelectorAll('.resumen-numero');
+
+let inventario = [];
+let categorias = [];
+
+const dialogo = crearSistemaDialogos();
+
+function escaparAtributo(valor) {
+  return String(valor)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+iniciar();
+
+async function iniciar() {
+  pintarUsuario();
+  await cargarCategorias();
+  await cargarInventario();
+}
+
+function pintarUsuario() {
+  if (!usuarioInfo) {
+    return;
+  }
+
+  if (!usuarioSesion) {
+    usuarioInfo.textContent = 'Usuario';
+    return;
+  }
+
+  try {
+    const user = JSON.parse(usuarioSesion);
+    usuarioInfo.textContent = user.nombre + ' ' + user.apellido + ' (' + user.rol + ')';
+  } catch (error) {
+    usuarioInfo.textContent = 'Usuario';
+  }
+}
+
 if (btnSalir) {
   btnSalir.addEventListener('click', function () {
     sessionStorage.removeItem('accesoFET');
+    sessionStorage.removeItem('usuarioFET');
   });
 }
 
-const STORAGE_KEY = 'inventarioFET';
 
-const tablaBody = document.querySelector('.tabla-inventario tbody');
-const formulario = document.querySelector('.formulario-elemento');
-const inputElemento = document.getElementById('elemento');
-const inputCategoria = document.getElementById('categoria');
-const inputTotal = document.getElementById('total');
-const inputPrestados = document.getElementById('prestados');
-const inputEstado = document.getElementById('estado');
-const btnGuardar = document.querySelector('.btn-principal');
+if (formProducto) {
+  formProducto.addEventListener('submit', function (evento) {
+    evento.preventDefault();
+    registrarElemento();
+  });
+}
 
-const botonesSecundarios = document.querySelectorAll('.btn-secundario');
-const btnPrestamo = botonesSecundarios[0];
-const btnDevolucion = botonesSecundarios[1];
+if (btnVerCategorias) {
+  btnVerCategorias.addEventListener('click', mostrarCategorias);
+}
 
-const formBusqueda = document.querySelector('.buscador');
-const inputBusqueda = document.getElementById('busqueda');
-const btnBuscar = formBusqueda ? formBusqueda.querySelector('button') : null;
-
-const resumenNumeros = document.querySelectorAll('.resumen-numero');
-
-let inventario = cargarInventario();
-let inventarioFiltrado = inventario.slice();
-
-renderTabla(inventarioFiltrado);
-actualizarResumen();
-
-if (btnGuardar) {
-  btnGuardar.addEventListener('click', registrarElemento);
+if (btnRegistrarCategoria) {
+  btnRegistrarCategoria.addEventListener('click', registrarCategoria);
 }
 
 if (btnPrestamo) {
@@ -54,22 +103,23 @@ if (btnDevolucion) {
   });
 }
 
-if (btnBuscar) {
-  btnBuscar.addEventListener('click', aplicarBusqueda);
-}
-
 if (formBusqueda) {
   formBusqueda.addEventListener('submit', function (evento) {
     evento.preventDefault();
-    aplicarBusqueda();
+    buscarInventario();
   });
+}
+
+const btnBuscar = document.getElementById('btnBuscar');
+if (btnBuscar) {
+  btnBuscar.addEventListener('click', buscarInventario);
 }
 
 if (inputBusqueda) {
   inputBusqueda.addEventListener('input', function () {
     if (inputBusqueda.value.trim() === '') {
-      inventarioFiltrado = inventario.slice();
-      renderTabla(inventarioFiltrado);
+      renderTabla(inventario);
+      actualizarResumen(inventario);
     }
   });
 }
@@ -84,61 +134,174 @@ if (tablaBody) {
     const accion = boton.getAttribute('data-action');
     const id = boton.getAttribute('data-id');
 
-    if (accion === 'eliminar') {
-      eliminarElemento(id);
-    }
-
     if (accion === 'editar') {
       editarElemento(id);
     }
+
+    if (accion === 'eliminar') {
+      eliminarElemento(id);
+    }
   });
 }
 
-function cargarInventario() {
-  const guardado = localStorage.getItem(STORAGE_KEY);
-
-  if (guardado) {
-    try {
-      return JSON.parse(guardado);
-    } catch (error) {
-      localStorage.removeItem(STORAGE_KEY);
-    }
+document.body.addEventListener('click', function (evento) {
+  const boton = evento.target.closest('button');
+  if (!boton) {
+    return;
   }
 
-  const filas = document.querySelectorAll('.tabla-inventario tbody tr');
-  const inicial = [];
+  const accion = boton.getAttribute('data-action');
+  const id = boton.getAttribute('data-id');
 
-  filas.forEach(function (fila) {
-    const celdas = fila.querySelectorAll('td');
-    if (celdas.length < 8) {
-      return;
+  if (accion === 'editar-categoria') {
+    editarCategoria(id);
+  }
+
+  if (accion === 'eliminar-categoria') {
+    eliminarCategoria(id);
+  }
+});
+
+async function cargarInventario() {
+  try {
+    const respuesta = await fetch(API_BASE + '/inventario');
+    const data = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(data.mensaje || 'No se pudo cargar inventario');
     }
 
-    const id = celdas[0].textContent.trim();
-    const elemento = celdas[1].textContent.trim();
-    const categoria = celdas[2].textContent.trim();
-    const total = Number(celdas[3].textContent.trim());
-    const prestados = Number(celdas[4].textContent.trim());
-    const disponibles = Number(celdas[5].textContent.trim());
-    const estado = celdas[6].textContent.trim();
-
-    inicial.push({
-      id: id,
-      elemento: elemento,
-      categoria: categoria,
-      total: total,
-      prestados: prestados,
-      disponibles: disponibles,
-      estado: estado
-    });
-  });
-
-  guardarInventario(inicial);
-  return inicial;
+    inventario = data;
+    renderTabla(inventario);
+    actualizarResumen(inventario);
+  } catch (error) {
+    if (tablaBody) {
+      tablaBody.innerHTML = '<tr><td colspan="15">Error cargando inventario desde API.</td></tr>';
+    }
+    await dialogo.alerta('Error de conexion', 'No se pudo conectar con el backend: ' + error.message, 'error');
+  }
 }
 
-function guardarInventario(data) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+async function cargarCategorias() {
+  try {
+    const respuesta = await fetch(API_BASE + '/categorias');
+    const data = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(data.mensaje || 'No se pudieron cargar categorias');
+    }
+
+    categorias = data;
+  } catch (error) {
+    await dialogo.alerta('Error de categorias', 'No se pudieron cargar las categorias: ' + error.message, 'error');
+  }
+}
+
+async function mostrarCategorias() {
+  if (!categorias.length) {
+    await cargarCategorias();
+  }
+
+  const filas = categorias.length
+    ? categorias
+        .map(function (categoria) {
+          return (
+            '<tr>' +
+            '<td>' + categoria.id_categoria + '</td>' +
+            '<td>' + escaparAtributo(categoria.nombre) + '</td>' +
+            '<td>' + escaparAtributo(categoria.descripcion || 'Sin descripcion') + '</td>' +
+            '<td>' +
+            '<button type="button" class="btn-editar" data-action="editar-categoria" data-id="' + categoria.id_categoria + '">Editar</button>' +
+            '<button type="button" class="btn-eliminar" data-action="eliminar-categoria" data-id="' + categoria.id_categoria + '">Eliminar</button>' +
+            '</td>' +
+            '</tr>'
+          );
+        })
+        .join('')
+    : '<tr><td colspan="4">No hay categorias registradas.</td></tr>';
+
+  await dialogo.html(
+    'Categorias registradas',
+    '<div class="modal-tabla-wrapper"><table class="tabla-modal-categorias"><thead><tr><th>ID Categoria</th><th>Nombre</th><th>Descripcion</th><th>Acciones</th></tr></thead><tbody>' +
+      filas +
+      '</tbody></table></div>',
+    'aviso',
+    [{ texto: 'Cerrar', valor: true, clase: 'modal-btn-principal' }],
+    'modal-categorias-vista'
+  );
+}
+
+async function editarCategoria(id) {
+  const actual = categorias.find(function (categoria) {
+    return String(categoria.id_categoria) === String(id);
+  });
+
+  if (!actual) {
+    await dialogo.alerta('No encontrada', 'No se encontro la categoria seleccionada.', 'aviso');
+    return;
+  }
+
+  const datos = await dialogo.formulario('Editar categoria', [
+    { name: 'nombre', label: 'Nombre de la categoria', type: 'text', value: actual.nombre, required: true },
+    { name: 'descripcion', label: 'Descripcion', type: 'text', value: actual.descripcion || '', required: false }
+  ]);
+
+  if (!datos) {
+    return;
+  }
+
+  const nombre = String(datos.nombre || '').trim();
+  const descripcion = String(datos.descripcion || '').trim();
+
+  if (!nombre) {
+    await dialogo.alerta('Campo requerido', 'El nombre de la categoria es obligatorio.', 'aviso');
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(API_BASE + '/categorias/' + id, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ nombre: nombre, descripcion: descripcion })
+    });
+
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'No se pudo editar categoria');
+    }
+
+    await cargarCategorias();
+    await dialogo.alerta('Categoria actualizada', 'La categoria se actualizo correctamente.', 'exito');
+  } catch (error) {
+    await dialogo.alerta('Error al editar categoria', error.message, 'error');
+  }
+}
+
+async function eliminarCategoria(id) {
+  const confirmar = await dialogo.confirmacion('Eliminar categoria', 'Si eliminas esta categoria, no debe tener productos asociados. Deseas continuar?');
+  if (!confirmar) {
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(API_BASE + '/categorias/' + id, {
+      method: 'DELETE'
+    });
+
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'No se pudo eliminar categoria');
+    }
+
+    await cargarCategorias();
+    await dialogo.alerta('Categoria eliminada', 'La categoria se elimino correctamente.', 'exito');
+  } catch (error) {
+    await dialogo.alerta('Error al eliminar categoria', error.message, 'error');
+  }
 }
 
 function renderTabla(data) {
@@ -146,201 +309,307 @@ function renderTabla(data) {
     return;
   }
 
+  if (!data.length) {
+    tablaBody.innerHTML = '<tr><td colspan="15">No hay elementos para mostrar.</td></tr>';
+    return;
+  }
+
   tablaBody.innerHTML = '';
 
   data.forEach(function (item) {
-    const estadoClass = item.disponibles <= 5 ? 'bajo' : 'bueno';
-    const estadoTexto = item.disponibles <= 5 ? 'Pocas unidades' : 'Disponible';
+    const estadoClass = item.estado === 'Pocas unidades' ? 'bajo' : 'bueno';
 
     const fila = document.createElement('tr');
     fila.innerHTML =
-      '<td>' + item.id + '</td>' +
-      '<td>' + item.elemento + '</td>' +
-      '<td>' + item.categoria + '</td>' +
-      '<td>' + item.total + '</td>' +
-      '<td>' + item.prestados + '</td>' +
+      '<td>' + item.id_producto + '</td>' +
+      '<td>' + item.numero_item + '</td>' +
+      '<td>' + item.nombre + '</td>' +
+      '<td>' + (item.marca || 'Sin marca') + '</td>' +
+      '<td>' + (item.modelo || 'Sin modelo') + '</td>' +
+      '<td>' + item.stock_total + '</td>' +
+      '<td>' + item.stock_minimo + '</td>' +
+      '<td>' + item.id_categoria + '</td>' +
+      '<td>' + (item.categoria || 'Sin categoria') + '</td>' +
+      '<td>' + item.id_ubicacion + '</td>' +
+      '<td>' + (item.ubicacion || 'Sin ubicacion') + '</td>' +
+      '<td>' + item.prestamos_activos + '</td>' +
       '<td>' + item.disponibles + '</td>' +
-      '<td><span class="estado ' + estadoClass + '">' + estadoTexto + '</span></td>' +
+      '<td><span class="estado ' + estadoClass + '">' + item.estado + '</span></td>' +
       '<td>' +
-      '<button type="button" class="btn-editar" data-action="editar" data-id="' + item.id + '">Editar</button>' +
-      '<button type="button" class="btn-eliminar" data-action="eliminar" data-id="' + item.id + '">Eliminar</button>' +
+      '<button type="button" class="btn-editar" data-action="editar" data-id="' + item.id_producto + '">Editar</button>' +
+      '<button type="button" class="btn-eliminar" data-action="eliminar" data-id="' + item.id_producto + '">Eliminar</button>' +
       '</td>';
 
     tablaBody.appendChild(fila);
   });
 }
 
-function registrarElemento() {
-  const elemento = inputElemento ? inputElemento.value.trim() : '';
-  const categoria = inputCategoria ? inputCategoria.value.trim() : '';
-  const total = Number(inputTotal ? inputTotal.value : 0);
-  const prestados = Number(inputPrestados && inputPrestados.value ? inputPrestados.value : 0);
+async function registrarElemento() {
+  const numeroItem = Number(inputNumeroItem ? inputNumeroItem.value : 0);
+  const nombre = inputElemento ? inputElemento.value.trim() : '';
+  const stockTotal = Number(inputTotal ? inputTotal.value : 0);
+  const stockMinimo = Number(inputStockMinimo ? inputStockMinimo.value : 0);
+  const marca = inputMarca ? inputMarca.value.trim() : '';
+  const modelo = inputModelo ? inputModelo.value.trim() : '';
+  const idCategoria = Number(inputCategoria ? inputCategoria.value : 0);
+  const idUbicacion = Number(inputUbicacion ? inputUbicacion.value : 0);
 
-  if (!elemento || !categoria || !total) {
-    alert('Completa nombre, categoría y cantidad total.');
+  if (!numeroItem || !nombre || stockTotal < 1 || stockMinimo < 0 || !marca || !modelo || !idCategoria || !idUbicacion) {
+    await dialogo.alerta('Campos requeridos', 'Completa todos los campos del producto antes de guardar.', 'aviso');
     return;
   }
 
-  if (total < 1 || prestados < 0 || prestados > total) {
-    alert('Revisa cantidades: total >= 1 y prestados entre 0 y total.');
-    return;
+  try {
+    const respuesta = await fetch(API_BASE + '/inventario', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        numero_item: numeroItem,
+        nombre: nombre,
+        stock_total: stockTotal,
+        stock_minimo: stockMinimo,
+        marca: marca,
+        modelo: modelo,
+        id_categoria: idCategoria,
+        id_ubicacion: idUbicacion
+      })
+    });
+
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'No se pudo registrar');
+    }
+
+    if (formulario) {
+      formulario.reset();
+    }
+
+    await cargarInventario();
+    await dialogo.alerta('Registro exitoso', 'Elemento registrado correctamente.', 'exito');
+  } catch (error) {
+    await dialogo.alerta('Error al registrar', error.message, 'error');
   }
-
-  const nuevo = {
-    id: generarNuevoId(),
-    elemento: elemento,
-    categoria: categoria,
-    total: total,
-    prestados: prestados,
-    disponibles: total - prestados,
-    estado: inputEstado && inputEstado.value.trim() ? inputEstado.value.trim() : 'Disponible'
-  };
-
-  inventario.push(nuevo);
-  guardarInventario(inventario);
-
-  inventarioFiltrado = inventario.slice();
-  renderTabla(inventarioFiltrado);
-  actualizarResumen();
-
-  if (formulario) {
-    formulario.reset();
-  }
-
-  alert('Elemento registrado correctamente.');
 }
 
-function registrarMovimiento(tipo) {
-  const idIngresado = prompt('Ingresa el ID del elemento (ejemplo: 001):');
-  if (!idIngresado) {
+async function registrarCategoria() {
+  const datos = await dialogo.formulario('Registrar categoria', [
+    { name: 'nombre', label: 'Nombre de la categoria', type: 'text', placeholder: 'Ejemplo: Balones', required: true },
+    { name: 'descripcion', label: 'Descripcion', type: 'text', placeholder: 'Describe la categoria', required: false }
+  ]);
+
+  if (!datos) {
     return;
   }
 
-  const id = idIngresado.trim();
-  const item = inventario.find(function (el) {
-    return el.id === id;
-  });
+  const nombre = String(datos.nombre || '').trim();
+  const descripcion = String(datos.descripcion || '').trim();
 
-  if (!item) {
-    alert('No existe ese ID.');
+  if (!nombre) {
+    await dialogo.alerta('Campo requerido', 'Escribe el nombre de la categoria.', 'aviso');
     return;
   }
 
-  const cantidad = Number(prompt('Cantidad:'));
-  if (!cantidad || cantidad < 1) {
-    alert('Cantidad inválida.');
-    return;
-  }
+  try {
+    const respuesta = await fetch(API_BASE + '/categorias', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ nombre: nombre, descripcion: descripcion })
+    });
 
-  if (tipo === 'prestamo') {
-    if (cantidad > item.disponibles) {
-      alert('No hay suficientes unidades disponibles.');
-      return;
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'No se pudo registrar categoria');
     }
-    item.prestados = item.prestados + cantidad;
-    item.disponibles = item.disponibles - cantidad;
+
+    await cargarCategorias();
+    await dialogo.alerta('Categoria registrada', 'La categoria se guardo correctamente.', 'exito');
+  } catch (error) {
+    await dialogo.alerta('Error al registrar categoria', error.message, 'error');
   }
-
-  if (tipo === 'devolucion') {
-    if (cantidad > item.prestados) {
-      alert('No puedes devolver más de lo prestado.');
-      return;
-    }
-    item.prestados = item.prestados - cantidad;
-    item.disponibles = item.disponibles + cantidad;
-  }
-
-  guardarInventario(inventario);
-  aplicarBusqueda();
-  actualizarResumen();
-
-  alert('Movimiento registrado correctamente.');
 }
 
-function aplicarBusqueda() {
-  const texto = inputBusqueda ? inputBusqueda.value.trim().toLowerCase() : '';
+async function registrarMovimiento(tipo) {
+  const titulo = tipo === 'prestamo' ? 'Registrar prestamo' : 'Registrar devolucion';
+  const datos = await dialogo.formulario(titulo, [
+    { name: 'id_producto', label: 'ID del producto', type: 'number', placeholder: 'Ejemplo: 1', required: true },
+    { name: 'cantidad', label: 'Cantidad', type: 'number', placeholder: 'Ejemplo: 2', required: true, min: 1 },
+    { name: 'responsable', label: 'Responsable', type: 'text', placeholder: 'Tu nombre', required: true }
+  ]);
+
+  if (!datos) {
+    return;
+  }
+
+  const idProducto = Number(datos.id_producto);
+  const cantidad = Number(datos.cantidad);
+  const responsable = String(datos.responsable || '').trim();
+
+  if (!idProducto || cantidad < 1 || !responsable) {
+    await dialogo.alerta('Datos invalidos', 'Revisa ID, cantidad y responsable.', 'aviso');
+    return;
+  }
+
+  const ruta = tipo === 'prestamo' ? '/prestamos' : '/devoluciones';
+
+  try {
+    const respuesta = await fetch(API_BASE + ruta, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ id_producto: idProducto, cantidad: cantidad, responsable: responsable })
+    });
+
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'No se pudo guardar el movimiento');
+    }
+
+    await cargarInventario();
+    await dialogo.alerta('Operacion exitosa', data.mensaje || 'Movimiento registrado.', 'exito');
+  } catch (error) {
+    await dialogo.alerta('Error en movimiento', error.message, 'error');
+  }
+}
+
+async function buscarInventario() {
+  const texto = inputBusqueda ? inputBusqueda.value.trim() : '';
 
   if (!texto) {
-    inventarioFiltrado = inventario.slice();
-  } else {
-    inventarioFiltrado = inventario.filter(function (item) {
-      return (
-        item.id.toLowerCase().indexOf(texto) !== -1 ||
-        item.elemento.toLowerCase().indexOf(texto) !== -1 ||
-        item.categoria.toLowerCase().indexOf(texto) !== -1 ||
-        String(item.total).indexOf(texto) !== -1 ||
-        String(item.prestados).indexOf(texto) !== -1 ||
-        String(item.disponibles).indexOf(texto) !== -1
-      );
-    });
+    renderTabla(inventario);
+    actualizarResumen(inventario);
+    return;
   }
 
-  renderTabla(inventarioFiltrado);
+  try {
+    const respuesta = await fetch(API_BASE + '/inventario/buscar?q=' + encodeURIComponent(texto));
+    const data = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(data.mensaje || 'No se pudo buscar');
+    }
+
+    renderTabla(data);
+    actualizarResumen(data);
+  } catch (error) {
+    await dialogo.alerta('Error en busqueda', error.message, 'error');
+  }
 }
 
-function eliminarElemento(id) {
-  const confirmar = confirm('¿Seguro que quieres eliminar el elemento con ID ' + id + '?');
+async function editarElemento(id) {
+  const actual = inventario.find(function (item) {
+    return String(item.id_producto) === String(id);
+  });
+
+  if (!actual) {
+    await dialogo.alerta('No encontrado', 'No se encontro el elemento seleccionado.', 'aviso');
+    return;
+  }
+
+  const datos = await dialogo.formulario('Editar elemento', [
+    { name: 'numero_item', label: 'Número de item', type: 'number', value: String(actual.numero_item), required: true, min: 1 },
+    { name: 'nombre', label: 'Nombre', type: 'text', value: actual.nombre, required: true },
+    { name: 'stock_total', label: 'Stock total', type: 'number', value: String(actual.stock_total), required: true, min: 1 },
+    { name: 'stock_minimo', label: 'Stock mínimo', type: 'number', value: String(actual.stock_minimo || 0), required: true, min: 0 },
+    { name: 'marca', label: 'Marca', type: 'text', value: actual.marca || '', required: true },
+    { name: 'modelo', label: 'Modelo', type: 'text', value: actual.modelo || '', required: true },
+    { name: 'id_categoria', label: 'ID de categoría', type: 'number', value: String(actual.id_categoria || 0), required: true, min: 1 },
+    { name: 'id_ubicacion', label: 'ID de ubicación', type: 'number', value: String(actual.id_ubicacion || 0), required: true, min: 1 }
+  ]);
+
+  if (!datos) {
+    return;
+  }
+
+  const numeroItem = Number(datos.numero_item);
+  const nuevoNombre = String(datos.nombre || '').trim();
+  const nuevoTotal = Number(datos.stock_total);
+  const nuevoStockMinimo = Number(datos.stock_minimo);
+  const nuevaMarca = String(datos.marca || '').trim();
+  const nuevoModelo = String(datos.modelo || '').trim();
+  const nuevaCategoria = Number(datos.id_categoria);
+  const nuevaUbicacion = Number(datos.id_ubicacion);
+
+  if (!numeroItem || !nuevoNombre || nuevoTotal < 1 || nuevoStockMinimo < 0 || !nuevaMarca || !nuevoModelo || !nuevaCategoria || !nuevaUbicacion) {
+    await dialogo.alerta('Datos invalidos', 'Todos los campos del producto son obligatorios.', 'aviso');
+    return;
+  }
+
+  try {
+    const respuesta = await fetch(API_BASE + '/inventario/' + id, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        numero_item: numeroItem,
+        nombre: nuevoNombre,
+        stock_total: nuevoTotal,
+        stock_minimo: nuevoStockMinimo,
+        marca: nuevaMarca,
+        modelo: nuevoModelo,
+        id_categoria: nuevaCategoria,
+        id_ubicacion: nuevaUbicacion
+      })
+    });
+
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'No se pudo editar');
+    }
+
+    await cargarInventario();
+    await dialogo.alerta('Edicion exitosa', 'Elemento actualizado correctamente.', 'exito');
+  } catch (error) {
+    await dialogo.alerta('Error al editar', error.message, 'error');
+  }
+}
+
+async function eliminarElemento(id) {
+  const confirmar = await dialogo.confirmacion('Eliminar producto', 'Esta accion borrara el producto y sus movimientos. Deseas continuar?');
   if (!confirmar) {
     return;
   }
 
-  inventario = inventario.filter(function (item) {
-    return item.id !== id;
-  });
+  try {
+    const respuesta = await fetch(API_BASE + '/inventario/' + id, {
+      method: 'DELETE'
+    });
 
-  guardarInventario(inventario);
-  aplicarBusqueda();
-  actualizarResumen();
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'No se pudo eliminar');
+    }
+
+    await cargarInventario();
+    await dialogo.alerta('Eliminado', 'Producto eliminado correctamente.', 'exito');
+  } catch (error) {
+    await dialogo.alerta('Error al eliminar', error.message, 'error');
+  }
 }
 
-function editarElemento(id) {
-  const item = inventario.find(function (el) {
-    return el.id === id;
-  });
-
-  if (!item) {
-    return;
-  }
-
-  const nuevoNombre = prompt('Nuevo nombre del elemento:', item.elemento);
-  if (!nuevoNombre) {
-    return;
-  }
-
-  const nuevaCategoria = prompt('Nueva categoría:', item.categoria);
-  if (!nuevaCategoria) {
-    return;
-  }
-
-  const nuevoTotal = Number(prompt('Nueva cantidad total:', String(item.total)));
-  if (!nuevoTotal || nuevoTotal < item.prestados) {
-    alert('Total inválido. Debe ser mayor o igual a prestados.');
-    return;
-  }
-
-  item.elemento = nuevoNombre.trim();
-  item.categoria = nuevaCategoria.trim();
-  item.total = nuevoTotal;
-  item.disponibles = item.total - item.prestados;
-
-  guardarInventario(inventario);
-  aplicarBusqueda();
-  actualizarResumen();
-}
-
-function actualizarResumen() {
+function actualizarResumen(data) {
   if (resumenNumeros.length < 3) {
     return;
   }
 
-  const totalElementos = inventario.length;
-  const prestamosActivos = inventario.reduce(function (acumulado, item) {
-    return acumulado + item.prestados;
+  const totalElementos = data.length;
+  const prestamosActivos = data.reduce(function (total, item) {
+    return total + Number(item.prestamos_activos || 0);
   }, 0);
 
   const categorias = new Set(
-    inventario.map(function (item) {
-      return item.categoria.toLowerCase();
+    data.map(function (item) {
+      return String(item.categoria || '').toLowerCase();
     })
   );
 
@@ -349,17 +618,199 @@ function actualizarResumen() {
   resumenNumeros[2].textContent = String(categorias.size).padStart(2, '0');
 }
 
-function generarNuevoId() {
-  let maximo = 0;
+function crearSistemaDialogos() {
+  const overlay = document.createElement('div');
+  overlay.className = 'modal-overlay';
+  overlay.innerHTML =
+    '<div class="modal-caja" role="dialog" aria-modal="true" aria-labelledby="modalTitulo">' +
+    '<div class="modal-encabezado">' +
+    '<h3 id="modalTitulo" class="modal-titulo"></h3>' +
+    '<button type="button" class="modal-cerrar" aria-label="Cerrar">x</button>' +
+    '</div>' +
+    '<div class="modal-contenido"></div>' +
+    '<div class="modal-acciones"></div>' +
+    '</div>';
 
-  inventario.forEach(function (item) {
-    const numero = Number(item.id);
-    if (numero > maximo) {
-      maximo = numero;
+  document.body.appendChild(overlay);
+
+  const caja = overlay.querySelector('.modal-caja');
+  const titulo = overlay.querySelector('.modal-titulo');
+  const contenido = overlay.querySelector('.modal-contenido');
+  const acciones = overlay.querySelector('.modal-acciones');
+  const cerrarBtn = overlay.querySelector('.modal-cerrar');
+
+  function abrir(config) {
+    overlay.classList.remove('cerrando');
+    titulo.textContent = config.titulo || 'Mensaje';
+    contenido.innerHTML = '';
+    acciones.innerHTML = '';
+    caja.classList.remove('modal-exito', 'modal-error', 'modal-aviso', 'modal-categorias-vista');
+
+    if (config.tipo) {
+      caja.classList.add('modal-' + config.tipo);
+    }
+
+    if (config.claseCaja) {
+      caja.classList.add(config.claseCaja);
+    }
+
+    if (config.contenidoHTML) {
+      contenido.innerHTML = config.contenidoHTML;
+    } else {
+      const p = document.createElement('p');
+      p.textContent = config.mensaje || '';
+      contenido.appendChild(p);
+    }
+
+    const botones = Array.isArray(config.botones) && config.botones.length > 0 ? config.botones : [{ texto: 'Aceptar', valor: true, clase: 'modal-btn-principal' }];
+
+    botones.forEach(function (btn) {
+      const boton = document.createElement('button');
+      boton.type = 'button';
+      boton.className = btn.clase || 'modal-btn-principal';
+      boton.textContent = btn.texto;
+      boton.addEventListener('click', function () {
+        cerrar(btn.valor);
+      });
+      acciones.appendChild(boton);
+    });
+
+    overlay.classList.add('activo');
+    document.body.classList.add('modal-abierto');
+    setTimeout(function () {
+      const primerInput = contenido.querySelector('input, select, textarea');
+      if (primerInput) {
+        primerInput.focus();
+      }
+    }, 40);
+
+    return new Promise(function (resolve) {
+      overlay.dataset.resolve = 'si';
+      overlay._resolver = resolve;
+    });
+  }
+
+  function cerrar(valor) {
+    if (!overlay.classList.contains('activo')) {
+      return;
+    }
+
+    overlay.classList.add('cerrando');
+
+    setTimeout(function () {
+      overlay.classList.remove('activo');
+      overlay.classList.remove('cerrando');
+      document.body.classList.remove('modal-abierto');
+
+      if (overlay.dataset.resolve === 'si' && typeof overlay._resolver === 'function') {
+        const resolver = overlay._resolver;
+        overlay.dataset.resolve = '';
+        overlay._resolver = null;
+        resolver(valor);
+      }
+    }, 180);
+  }
+
+  cerrarBtn.addEventListener('click', function () {
+    cerrar(null);
+  });
+
+  overlay.addEventListener('click', function (evento) {
+    if (evento.target === overlay) {
+      cerrar(null);
     }
   });
 
-  const siguiente = maximo + 1;
-  return String(siguiente).padStart(3, '0');
+  document.addEventListener('keydown', function (evento) {
+    if (evento.key === 'Escape' && overlay.classList.contains('activo')) {
+      cerrar(null);
+    }
+  });
+
+  async function alerta(tituloTexto, mensajeTexto, tipo) {
+    await abrir({
+      titulo: tituloTexto,
+      mensaje: mensajeTexto,
+      tipo: tipo || 'aviso',
+      botones: [{ texto: 'Aceptar', valor: true, clase: 'modal-btn-principal' }]
+    });
+  }
+
+  async function confirmacion(tituloTexto, mensajeTexto) {
+    const resultado = await abrir({
+      titulo: tituloTexto,
+      mensaje: mensajeTexto,
+      tipo: 'aviso',
+      botones: [
+        { texto: 'Cancelar', valor: false, clase: 'modal-btn-secundario' },
+        { texto: 'Continuar', valor: true, clase: 'modal-btn-principal' }
+      ]
+    });
+
+    return resultado === true;
+  }
+
+  async function formulario(tituloTexto, campos) {
+    let html = '<form class="modal-form" id="modalForm">';
+
+    campos.forEach(function (campo) {
+      const valor = campo.value ? escaparAtributo(campo.value) : '';
+      const placeholder = campo.placeholder ? ' placeholder="' + escaparAtributo(campo.placeholder) + '"' : '';
+      const min = typeof campo.min !== 'undefined' ? ' min="' + campo.min + '"' : '';
+      const required = campo.required ? ' required' : '';
+      const nombreCampo = escaparAtributo(campo.name || 'campo');
+      const tipoCampo = escaparAtributo(campo.type || 'text');
+      html +=
+        '<label class="modal-label" for="modal_' + nombreCampo + '">' + campo.label + '</label>' +
+        '<input class="modal-input" id="modal_' + nombreCampo + '" name="' + nombreCampo + '" type="' + tipoCampo + '" value="' + valor + '"' + placeholder + min + required + '>';
+    });
+
+    html += '</form>';
+
+    const resultado = await abrir({
+      titulo: tituloTexto,
+      contenidoHTML: html,
+      tipo: 'aviso',
+      botones: [
+        { texto: 'Cancelar', valor: null, clase: 'modal-btn-secundario' },
+        { texto: 'Guardar', valor: 'submit', clase: 'modal-btn-principal' }
+      ]
+    });
+
+    if (resultado !== 'submit') {
+      return null;
+    }
+
+    const form = contenido.querySelector('#modalForm');
+    if (!form || !form.reportValidity()) {
+      return null;
+    }
+
+    const formData = new FormData(form);
+    const salida = {};
+
+    campos.forEach(function (campo) {
+      salida[campo.name] = String(formData.get(campo.name) || '').trim();
+    });
+
+    return salida;
+  }
+
+  async function html(tituloTexto, contenidoHTML, tipo, botones, claseCaja) {
+    await abrir({
+      titulo: tituloTexto,
+      contenidoHTML: contenidoHTML,
+      tipo: tipo || 'aviso',
+      botones: botones || [{ texto: 'Cerrar', valor: true, clase: 'modal-btn-principal' }],
+      claseCaja: claseCaja || ''
+    });
+  }
+
+  return {
+    alerta: alerta,
+    confirmacion: confirmacion,
+    formulario: formulario,
+    html: html
+  };
 }
 

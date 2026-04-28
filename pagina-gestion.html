@@ -17,7 +17,7 @@
         <span class="logo-text">FET - Inventario Deportivo</span>
       </div>
       <div class="nav-right">
-        <span class="usuario-info">👤 Admin Deportes</span>
+        <span class="usuario-info" id="usuarioInfo">👤 Usuario</span>
         <a href="pagina-login.html" class="btn-salir" id="btnSalir">Cerrar Sesión</a>
       </div>
     </nav>
@@ -45,33 +45,66 @@
         </article>
       </section>
 
+      <section class="card panel-categorias-compacto">
+        <div class="categoria-compacto-info">
+          <h2>Categorías</h2>
+          <p class="texto-panel">Aquí puedes ver las categorías registradas o crear una nueva sin ocupar mucho espacio en la página.</p>
+        </div>
+        <div class="botones-categorias">
+          <button type="button" class="btn-secundario" id="btnVerCategorias">Ver categorías</button>
+          <button type="button" class="btn-principal" id="btnRegistrarCategoria">Registrar categoría</button>
+        </div>
+      </section>
+
       <section class="dashboard-grid">
         <article class="card panel-formulario">
-          <h2>Registrar nuevo elemento</h2>
-          <form class="formulario-elemento">
-            <div class="campo-grupo">
-              <label for="elemento">Nombre del elemento</label>
-              <input type="text" id="elemento" name="elemento" placeholder="Ejemplo: Balón de fútbol">
+          <h2>Registrar nuevo producto</h2>
+          <form class="formulario-elemento" id="formProducto">
+            <div class="fila-campos">
+              <div class="campo-grupo">
+                <label for="numeroItem">Número de item</label>
+                <input type="number" id="numeroItem" name="numeroItem" min="1" placeholder="Ejemplo: 21">
+              </div>
+              <div class="campo-grupo">
+                <label for="stockMinimo">Stock mínimo</label>
+                <input type="number" id="stockMinimo" name="stockMinimo" min="0" placeholder="Ejemplo: 3">
+              </div>
             </div>
             <div class="campo-grupo">
-              <label for="categoria">Categoría</label>
-              <input type="text" id="categoria" name="categoria" placeholder="Ejemplo: Balones">
+              <label for="elemento">Nombre del producto</label>
+              <input type="text" id="elemento" name="elemento" placeholder="Ejemplo: Balón de fútbol">
             </div>
             <div class="fila-campos">
               <div class="campo-grupo">
-                <label for="total">Cantidad total</label>
+                <label for="total">Stock total</label>
                 <input type="number" id="total" name="total" min="1" placeholder="0">
               </div>
               <div class="campo-grupo">
-                <label for="prestados">Cantidad prestada</label>
-                <input type="number" id="prestados" name="prestados" min="0" placeholder="0">
+                <label for="marca">Marca</label>
+                <input type="text" id="marca" name="marca" placeholder="Ejemplo: Adidas">
               </div>
             </div>
-            <div class="campo-grupo">
-              <label for="estado">Estado</label>
-              <input type="text" id="estado" name="estado" placeholder="Disponible / Pocas unidades">
+            <div class="fila-campos">
+              <div class="campo-grupo">
+                <label for="modelo">Modelo</label>
+                <input type="text" id="modelo" name="modelo" placeholder="Ejemplo: FIFA2022">
+              </div>
+              <div class="campo-grupo">
+                <label for="categoria">ID de categoría</label>
+                <input type="number" id="categoria" name="categoria" min="1" placeholder="Ejemplo: 1">
+              </div>
             </div>
-            <button type="button" class="btn-principal">Guardar elemento</button>
+            <div class="fila-campos">
+              <div class="campo-grupo">
+                <label for="ubicacion">ID de ubicación</label>
+                <input type="number" id="ubicacion" name="ubicacion" min="1" placeholder="Ejemplo: 1">
+              </div>
+              <div class="campo-grupo">
+                <label>Nota</label>
+                <p class="texto-panel">El ID del producto se genera automáticamente al guardar.</p>
+              </div>
+            </div>
+            <button type="submit" class="btn-principal" id="btnGuardarProducto">Guardar elemento</button>
           </form>
         </article>
 
@@ -79,13 +112,12 @@
           <h2>Préstamos y devoluciones</h2>
           <p class="texto-panel">Este espacio sirve para organizar el control de salida y regreso de los elementos deportivos.</p>
           <div class="acciones-rapidas">
-            <button type="button" class="btn-secundario">Registrar préstamo</button>
-            <button type="button" class="btn-secundario">Registrar devolución</button>
+            <button type="button" class="btn-secundario" id="btnPrestamo">Registrar préstamo</button>
+            <button type="button" class="btn-secundario" id="btnDevolucion">Registrar devolución</button>
           </div>
           <div class="lista-pasos">
             <p>1. Seleccionar el elemento.</p>
-            <p>2. Escribir el nombre del estudiante.</p>
-            <p>3. Confirmar la cantidad prestada.</p>
+            <p>2. Confirmar la cantidad prestada.</p>
           </div>
         </article>
       </section>
@@ -99,102 +131,34 @@
           <form class="buscador">
             <label for="busqueda" class="sr-only">Buscar elemento o categoría</label>
             <input type="search" id="busqueda" placeholder="Buscar elemento o categoría">
-            <button type="button">Buscar</button>
+            <button type="button" id="btnBuscar">Buscar</button>
           </form>
         </div>
 
         <div class="tabla-container">
-          <table class="tabla-inventario">
+          <table class="tabla-inventario" id="tablaInventario">
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Elemento</th>
-                <th>Categoría</th>
-                <th>Total</th>
-                <th>Prestados</th>
+                <th>ID Producto</th>
+                <th>No. Item</th>
+                <th>Nombre</th>
+                <th>Marca</th>
+                <th>Modelo</th>
+                <th>Stock Total</th>
+                <th>Stock Minimo</th>
+                <th>ID Categoria</th>
+                <th>Categoria</th>
+                <th>ID Ubicacion</th>
+                <th>Ubicacion</th>
+                <th>Prestamos Activos</th>
                 <th>Disponibles</th>
                 <th>Estado</th>
                 <th>Acciones</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody id="tbodyInventario">
               <tr>
-                <td>001</td>
-                <td>Balón de fútbol</td>
-                <td>Balones</td>
-                <td>20</td>
-                <td>5</td>
-                <td>15</td>
-                <td><span class="estado bueno">Disponible</span></td>
-                <td>
-                  <button type="button" class="btn-editar">Editar</button>
-                  <button type="button" class="btn-eliminar">Eliminar</button>
-                </td>
-              </tr>
-              <tr>
-                <td>002</td>
-                <td>Petos de entrenamiento</td>
-                <td>Uniformes</td>
-                <td>30</td>
-                <td>8</td>
-                <td>22</td>
-                <td><span class="estado bueno">Disponible</span></td>
-                <td>
-                  <button type="button" class="btn-editar">Editar</button>
-                  <button type="button" class="btn-eliminar">Eliminar</button>
-                </td>
-              </tr>
-              <tr>
-                <td>003</td>
-                <td>Raquetas de tenis de mesa</td>
-                <td>Raquetas</td>
-                <td>18</td>
-                <td>11</td>
-                <td>7</td>
-                <td><span class="estado bueno">Disponible</span></td>
-                <td>
-                  <button type="button" class="btn-editar">Editar</button>
-                  <button type="button" class="btn-eliminar">Eliminar</button>
-                </td>
-              </tr>
-              <tr>
-                <td>004</td>
-                <td>Cronómetros</td>
-                <td>Accesorios</td>
-                <td>10</td>
-                <td>3</td>
-                <td>7</td>
-                <td><span class="estado bueno">Disponible</span></td>
-                <td>
-                  <button type="button" class="btn-editar">Editar</button>
-                  <button type="button" class="btn-eliminar">Eliminar</button>
-                </td>
-              </tr>
-              <tr>
-                <td>005</td>
-                <td>Conos de agilidad</td>
-                <td>Entrenamiento</td>
-                <td>25</td>
-                <td>20</td>
-                <td>5</td>
-                <td><span class="estado bajo">Pocas unidades</span></td>
-                <td>
-                  <button type="button" class="btn-editar">Editar</button>
-                  <button type="button" class="btn-eliminar">Eliminar</button>
-                </td>
-              </tr>
-              <tr>
-                <td>006</td>
-                <td>Mallas de voleibol</td>
-                <td>Accesorios</td>
-                <td>6</td>
-                <td>2</td>
-                <td>4</td>
-                <td><span class="estado bueno">Disponible</span></td>
-                <td>
-                  <button type="button" class="btn-editar">Editar</button>
-                  <button type="button" class="btn-eliminar">Eliminar</button>
-                </td>
+                <td colspan="15">Cargando inventario...</td>
               </tr>
             </tbody>
           </table>
