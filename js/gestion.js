@@ -142,6 +142,11 @@ if (btnRefrescarSolicitudes) {
   btnRefrescarSolicitudes.addEventListener('click', cargarSolicitudes);
 }
 
+const btnGenerarReporte = document.getElementById('btnGenerarReporte');
+if (btnGenerarReporte) {
+  btnGenerarReporte.addEventListener('click', generarReporte);
+}
+
 const tablaSolicitudes = document.getElementById('tablaSolicitudes');
 if (tablaSolicitudes) {
   tablaSolicitudes.addEventListener('click', function (evento) {
@@ -1116,10 +1121,21 @@ async function rechazarSolicitud(id) {
     await dialogo.alerta('Error', 'ID de solicitud inválido', 'error');
     return;
   }
+  // Pedir observación obligatoria antes de rechazar
+  const datos = await dialogo.formulario('Rechazar solicitud', [
+    { name: 'observacion', label: 'Motivo del rechazo', type: 'text', placeholder: 'Escribe la razón del rechazo (obligatorio)', required: true }
+  ]);
+
+  if (!datos || !String(datos.observacion || '').trim()) {
+    await dialogo.alerta('Observación requerida', 'Debes escribir la observación del rechazo para continuar.', 'aviso');
+    return;
+  }
+
+  const observacion = String(datos.observacion).trim();
 
   const confirmacion = await dialogo.confirmacion(
-    'Rechazar solicitud',
-    '¿Deseas rechazar y eliminar esta solicitud de préstamo?',
+    'Confirmar rechazo',
+    '¿Deseas rechazar esta solicitud de préstamo?\nObservación: ' + observacion,
     'pregunta'
   );
 
@@ -1132,7 +1148,8 @@ async function rechazarSolicitud(id) {
       method: 'PUT',
       headers: {
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({ observacion: observacion })
     });
 
     const data = await respuesta.json();
@@ -1141,10 +1158,184 @@ async function rechazarSolicitud(id) {
       throw new Error(data.mensaje || 'Error rechazando solicitud');
     }
 
-    await dialogo.alerta('Éxito', data.mensaje, 'aviso');
+    await dialogo.alerta('Éxito', data.mensaje || 'Solicitud rechazada correctamente.', 'aviso');
     await cargarSolicitudes();
   } catch (error) {
     await dialogo.alerta('Error', 'Error rechazando solicitud: ' + error.message, 'error');
   }
 }
 
+// ========== FUNCIÓN PARA GENERAR REPORTE COMPLETO ==========
+
+async function generarReporte() {
+  try {
+    const respuesta = await fetch(API_BASE + '/reporte-sistema');
+    const data = await respuesta.json();
+
+    if (!respuesta.ok || !data.ok) {
+      throw new Error(data.mensaje || 'Error generando reporte');
+    }
+
+    const reporte = data.reporte;
+    descargarReporteExcel(reporte);
+  } catch (error) {
+    await dialogo.alerta('Error', 'Error generando reporte: ' + error.message, 'error');
+  }
+}
+
+function descargarReporteExcel(reporte) {
+  try {
+    // Verificar que XLSX esté disponible
+    if (typeof XLSX === 'undefined') {
+      throw new Error('La librería XLSX no se ha cargado correctamente. Por favor, recarga la página (F5).');
+    }
+
+    // Crear un nuevo workbook
+    const wb = XLSX.utils.book_new();
+
+    // Función para añadir estilos a las hojas
+    function aplicarEstilos(ws, filasTitulo = 1) {
+      for (let cell in ws) {
+        if (cell.match(/^[A-Z]+[0-9]+$/)) {
+          if (!ws[cell].s) ws[cell].s = {};
+          const fila = parseInt(cell.match(/[0-9]+$/)[0]);
+          if (fila <= filasTitulo) {
+            ws[cell].s = { font: { bold: true, sz: 14 }, fill: { fgColor: { rgb: 'FFD700' } }, alignment: { horizontal: 'center' } };
+          }
+        }
+      }
+    }
+
+    // ===== HOJA 1: RESUMEN EJECUTIVO =====
+    const resumenData = [
+      ['RESUMEN EJECUTIVO DEL SISTEMA DE INVENTARIO'],
+      ['Fecha de Generación: ' + new Date().toLocaleDateString('es-ES')],
+      [],
+      ['ESTADÍSTICAS GENERALES', ''],
+      ['Total de Productos', reporte.inventarioEstado.total_productos || 0],
+      ['Stock Total Disponible', reporte.inventarioEstado.stock_total || 0],
+      ['Productos con Bajo Stock', reporte.inventarioEstado.productos_bajo_stock || 0],
+      [],
+      ['ESTADO DE SOLICITUDES', ''],
+      ['Total Solicitudes Pendientes', (reporte.solicitudesPorEstado.find(s => s.tipo_salida === 'Solicitud Pendiente') || {total: 0}).total],
+      ['Total Solicitudes Aprobadas', (reporte.solicitudesPorEstado.find(s => s.tipo_salida === 'Prestamo') || {total: 0}).total],
+      ['Total Solicitudes Rechazadas', (reporte.solicitudesPorEstado.find(s => s.tipo_salida === 'Rechazado') || {total: 0}).total],
+      ['Total de Solicitudes (Todas)', (reporte.solicitudesPorEstado || []).reduce((sum, s) => sum + s.total, 0)],
+      [],
+      ['TASA DE APROBACIÓN', ''],
+      ['Tasa de Aprobación %', ((reporte.solicitudesPorEstado.find(s => s.tipo_salida === 'Prestamo') || {total: 0}).total / ((reporte.solicitudesPorEstado || []).reduce((sum, s) => sum + s.total, 0) || 1) * 100).toFixed(2) + '%']
+    ];
+    const wsResumen = XLSX.utils.aoa_to_sheet(resumenData);
+    wsResumen['!cols'] = [{wch: 40}, {wch: 20}];
+    aplicarEstilos(wsResumen, 1);
+    XLSX.utils.book_append_sheet(wb, wsResumen, 'Resumen');
+
+    // ===== HOJA 2: SOLICITUDES POR ESTADO (Detallado) =====
+    const solicitudesDetalleData = [
+      ['DESGLOSE DETALLADO DE SOLICITUDES'],
+      [],
+      ['Estado de Solicitud', 'Cantidad', 'Porcentaje %', 'Descripción']
+    ];
+    const totalSolicitudes = (reporte.solicitudesPorEstado || []).reduce((sum, s) => sum + s.total, 0);
+    const estadosMap = { 'Solicitud Pendiente': 'Pendientes (Por revisar)', 'Prestamo': 'Aprobadas (En préstamo)', 'Rechazado': 'Rechazadas (Denegadas)' };
+    (reporte.solicitudesPorEstado || []).forEach(function(item) {
+      const porcentaje = totalSolicitudes > 0 ? (item.total / totalSolicitudes * 100).toFixed(2) : 0;
+      solicitudesDetalleData.push([estadosMap[item.tipo_salida] || item.tipo_salida, item.total, porcentaje, '']);
+    });
+    const wsSolicitudesDetalle = XLSX.utils.aoa_to_sheet(solicitudesDetalleData);
+    wsSolicitudesDetalle['!cols'] = [{wch: 35}, {wch: 15}, {wch: 15}, {wch: 40}];
+    aplicarEstilos(wsSolicitudesDetalle, 2);
+    XLSX.utils.book_append_sheet(wb, wsSolicitudesDetalle, 'Solicitudes');
+
+    // ===== HOJA 3: TOP 20 PRODUCTOS PEDIDOS =====
+    const productosData = [
+      ['TOP 20 PRODUCTOS MÁS SOLICITADOS'],
+      [],
+      ['Ranking', 'Nombre del Producto', 'ID Producto', 'Total Solicitudes', 'Cantidad Total Prestada', 'Promedio por Solicitud']
+    ];
+    (reporte.productosPedidos || []).slice(0, 20).forEach(function(item, index) {
+      const promedio = item.total_solicitudes > 0 ? (item.cantidad_total / item.total_solicitudes).toFixed(2) : 0;
+      productosData.push([index + 1, item.nombre, item.id_producto, item.total_solicitudes, item.cantidad_total, promedio]);
+    });
+    const wsProductos = XLSX.utils.aoa_to_sheet(productosData);
+    wsProductos['!cols'] = [{wch: 10}, {wch: 35}, {wch: 12}, {wch: 20}, {wch: 25}, {wch: 20}];
+    aplicarEstilos(wsProductos, 2);
+    XLSX.utils.book_append_sheet(wb, wsProductos, 'Productos');
+
+    // ===== HOJA 4: ESTUDIANTES DETALLADO =====
+    const estudiantesData = [
+      ['TOP 20 ESTUDIANTES CON MÁS SOLICITUDES'],
+      [],
+      ['Ranking', 'Nombre Estudiante', 'Total Solicitudes', 'Pendientes', 'Aprobadas', 'Rechazadas', 'Tasa de Aprobación %']
+    ];
+    (reporte.solicitudesPorEstudiante || []).slice(0, 20).forEach(function(item, index) {
+      const tasaAprobacion = item.total_solicitudes > 0 ? (item.aprobadas / item.total_solicitudes * 100).toFixed(2) : 0;
+      estudiantesData.push([
+        index + 1,
+        item.responsable_entrega,
+        item.total_solicitudes,
+        item.pendientes || 0,
+        item.aprobadas || 0,
+        item.rechazadas || 0,
+        tasaAprobacion + '%'
+      ]);
+    });
+    const wsEstudiantes = XLSX.utils.aoa_to_sheet(estudiantesData);
+    wsEstudiantes['!cols'] = [{wch: 10}, {wch: 30}, {wch: 20}, {wch: 12}, {wch: 12}, {wch: 12}, {wch: 20}];
+    aplicarEstilos(wsEstudiantes, 2);
+    XLSX.utils.book_append_sheet(wb, wsEstudiantes, 'Estudiantes');
+
+    // ===== HOJA 5: PRÉSTAMOS POR PERÍODO DETALLADO =====
+    const prestamosData = [
+      ['PRÉSTAMOS POR PERÍODO (ÚLTIMOS 30 DÍAS)'],
+      [],
+      ['Fecha', 'Total de Préstamos', 'Promedio Diario']
+    ];
+    let totalPrestamos = 0;
+    (reporte.prestamosActivosPeriodo || []).forEach(function(item) {
+      totalPrestamos += item.total_prestamos;
+    });
+    const promedioDiario = (reporte.prestamosActivosPeriodo || []).length > 0 ? (totalPrestamos / (reporte.prestamosActivosPeriodo || []).length).toFixed(2) : 0;
+    
+    (reporte.prestamosActivosPeriodo || []).forEach(function(item) {
+      const fecha = item.fecha ? new Date(item.fecha).toLocaleDateString('es-ES') : 'Sin fecha';
+      prestamosData.push([fecha, item.total_prestamos, promedioDiario]);
+    });
+    prestamosData.push(['', '', '']);
+    prestamosData.push(['TOTAL PRÉSTAMOS EN PERÍODO', totalPrestamos, '']);
+    prestamosData.push(['PROMEDIO DIARIO', promedioDiario, '']);
+
+    const wsPrestamos = XLSX.utils.aoa_to_sheet(prestamosData);
+    wsPrestamos['!cols'] = [{wch: 25}, {wch: 20}, {wch: 20}];
+    aplicarEstilos(wsPrestamos, 2);
+    XLSX.utils.book_append_sheet(wb, wsPrestamos, 'Préstamos');
+
+    // ===== HOJA 6: NOTAS Y OBSERVACIONES =====
+    const notasData = [
+      ['NOTAS Y RECOMENDACIONES'],
+      [],
+      ['INFORMACIÓN IMPORTANTE', ''],
+      ['1. Productos Bajo Stock', 'Los productos con stock inferior al mínimo deben ser reabastecidos prioritariamente.'],
+      ['2. Solicitudes Rechazadas', 'Los estudiantes con solicitudes rechazadas deben contactar con el administrador para saber el motivo.'],
+      ['3. Período de Datos', 'Este reporte incluye datos de los últimos 30 días de préstamos activos.'],
+      ['4. Actualizaciones', 'El reporte se genera automáticamente cada vez que se solicita.'],
+      [],
+      ['LEYENDA', ''],
+      ['Solicitud Pendiente', 'Solicitud en espera de aprobación por un administrador'],
+      ['Prestamo (Aprobado)', 'Solicitud aprobada - artículo está siendo prestado'],
+      ['Rechazado', 'Solicitud denegada por falta de stock u otros motivos']
+    ];
+    const wsNotas = XLSX.utils.aoa_to_sheet(notasData);
+    wsNotas['!cols'] = [{wch: 25}, {wch: 60}];
+    aplicarEstilos(wsNotas, 1);
+    XLSX.utils.book_append_sheet(wb, wsNotas, 'Notas');
+
+    // Descargar el archivo
+    const nombreArchivo = 'Reporte_Inventario_Completo_' + new Date().toISOString().split('T')[0] + '.xlsx';
+    XLSX.writeFile(wb, nombreArchivo);
+
+    dialogo.alerta('Éxito', 'Reporte completo descargado como:\n' + nombreArchivo, 'aviso');
+  } catch (error) {
+    dialogo.alerta('Error', 'Error generando archivo Excel: ' + error.message, 'error');
+  }
+}

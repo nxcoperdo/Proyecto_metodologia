@@ -130,7 +130,10 @@
             <h2>Solicitudes de préstamo pendientes</h2>
             <p class="texto-panel">Visualiza y gestiona las solicitudes de préstamo de los estudiantes.</p>
           </div>
-          <button type="button" class="btn-principal" id="btnRefrescarSolicitudes">Refrescar solicitudes</button>
+          <div class="botones-seccion">
+            <button type="button" class="btn-principal" id="btnGenerarReporte">📊 Ver Reporte Completo</button>
+            <button type="button" class="btn-principal" id="btnRefrescarSolicitudes">Refrescar solicitudes</button>
+          </div>
         </div>
 
         <div class="tabla-container">
@@ -198,6 +201,7 @@
     </div>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="js/gestion.js"></script>
 
 </body>

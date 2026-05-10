@@ -631,10 +631,19 @@ app.get('/api/solicitudes-estudiante', async function (req, res) {
       return res.status(400).json({ ok: false, mensaje: 'El responsable es obligatorio' });
     }
 
-    let sql = `SELECT si.id_salida, si.fecha, si.cantidad, si.tipo_salida, si.id_producto, p.nombre AS producto
+    // Usar CASE WHEN para soportar si la columna observacion_rechazo existe o no
+    let sql = `SELECT si.id_salida, si.fecha, si.cantidad, si.tipo_salida, si.id_producto, p.nombre AS producto, 
+      CASE WHEN COLUMN_EXISTS('salida_inv', 'observacion_rechazo') THEN si.observacion_rechazo ELSE NULL END AS observacion_rechazo
       FROM salida_inv si
       JOIN producto p ON si.id_producto = p.id_producto
       WHERE LOWER(si.responsable_entrega) = LOWER(?)`;
+
+     // Versión simplificada que siempre funciona (sin observacion_rechazo por ahora)
+     sql = `SELECT si.id_salida, si.fecha, si.cantidad, si.tipo_salida, si.id_producto, p.nombre AS producto
+       FROM salida_inv si
+       JOIN producto p ON si.id_producto = p.id_producto
+       WHERE LOWER(si.responsable_entrega) = LOWER(?)`;
+
     const params = [responsable];
 
     if (desdeId > 0) {
@@ -645,7 +654,24 @@ app.get('/api/solicitudes-estudiante', async function (req, res) {
     sql += ' ORDER BY si.id_salida DESC LIMIT 50';
 
     const [rows] = await pool.query(sql, params);
-    return res.json({ ok: true, solicitudes: rows });
+
+    // Ahora obtener observacion_rechazo aparte si existe para cada fila
+    const resultado = await Promise.all(rows.map(async function (fila) {
+      try {
+        const [obsRows] = await pool.query(
+          'SELECT observacion_rechazo FROM salida_inv WHERE id_salida = ? LIMIT 1',
+          [fila.id_salida]
+        );
+        if (obsRows.length) {
+          fila.observacion_rechazo = obsRows[0].observacion_rechazo;
+        }
+      } catch (err) {
+        // Si falla la columna no existe, no agregar observacion_rechazo
+      }
+      return fila;
+    }));
+
+    return res.json({ ok: true, solicitudes: resultado });
   } catch (error) {
     return res.status(500).json({ ok: false, mensaje: 'Error consultando solicitudes del estudiante', detalle: error.message });
   }
@@ -710,20 +736,33 @@ app.put('/api/solicitudes-pendientes/:id/aprobar', async function (req, res) {
 app.put('/api/solicitudes-pendientes/:id/rechazar', async function (req, res) {
   try {
     const idSalida = Number(req.params.id);
+    const observacion = String(req.body.observacion || '').trim();
 
     if (!idSalida) {
       return res.status(400).json({ ok: false, mensaje: 'ID invalido' });
     }
 
     const [solicitudRows] = await pool.query('SELECT * FROM salida_inv WHERE id_salida = ? AND tipo_salida = ? LIMIT 1', [idSalida, 'Solicitud Pendiente']);
-    
     if (!solicitudRows.length) {
       return res.status(404).json({ ok: false, mensaje: 'Solicitud no encontrada' });
     }
 
-    await pool.query('DELETE FROM salida_inv WHERE id_salida = ?', [idSalida]);
+    // Asegurar que la columna observacion_rechazo exista (compatibilidad en BD)
+    const [colCheck] = await pool.query("SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'salida_inv' AND COLUMN_NAME = 'observacion_rechazo'");
+    if (!colCheck.length) {
+      await pool.query("ALTER TABLE salida_inv ADD COLUMN observacion_rechazo TEXT NULL");
+    }
 
-    return res.json({ ok: true, mensaje: 'Solicitud rechazada y eliminada' });
+    // Marcar como rechazado y guardar la observación
+    await pool.query('UPDATE salida_inv SET tipo_salida = ?, observacion_rechazo = ? WHERE id_salida = ?', ['Rechazado', observacion || null, idSalida]);
+
+    // Obtener fila actualizada para devolverla y facilitar comprobación en frontend
+    const [actualizadoRows] = await pool.query('SELECT id_salida, fecha, cantidad, tipo_salida, id_producto, responsable_entrega, observacion_rechazo FROM salida_inv WHERE id_salida = ? LIMIT 1', [idSalida]);
+    const fila = actualizadoRows.length ? actualizadoRows[0] : null;
+
+    console.log('[API] Solicitud rechazada:', { idSalida: idSalida, observacion: observacion || null });
+
+    return res.json({ ok: true, mensaje: 'Solicitud rechazada', observacion: observacion || null, solicitud: fila });
   } catch (error) {
     return res.status(500).json({ ok: false, mensaje: 'Error rechazando solicitud', detalle: error.message });
   }
@@ -756,6 +795,83 @@ app.post('/api/devoluciones', async function (req, res) {
     return res.status(201).json({ ok: true, mensaje: 'Devolucion registrada en entrada de inventario' });
   } catch (error) {
     return res.status(500).json({ ok: false, mensaje: 'Error registrando devolucion', detalle: error.message });
+  }
+});
+
+// Endpoint para obtener reporte completo del sistema
+app.get('/api/reporte-sistema', async function (req, res) {
+  try {
+    // Solicitudes por estado
+    const [solicitudes] = await pool.query(`
+      SELECT 
+        tipo_salida,
+        COUNT(*) as total
+      FROM salida_inv
+      WHERE tipo_salida IN ('Solicitud Pendiente', 'Prestamo', 'Rechazado')
+      GROUP BY tipo_salida
+    `);
+
+    // Productos más pedidos (por cantidad de solicitudes)
+    const [productosPedidos] = await pool.query(`
+      SELECT 
+        p.id_producto,
+        p.nombre,
+        COUNT(si.id_salida) as total_solicitudes,
+        SUM(si.cantidad) as cantidad_total
+      FROM salida_inv si
+      JOIN producto p ON si.id_producto = p.id_producto
+      GROUP BY p.id_producto, p.nombre
+      ORDER BY total_solicitudes DESC
+      LIMIT 10
+    `);
+
+    // Estado general del inventario
+    const [inventarioEstado] = await pool.query(`
+      SELECT 
+        COUNT(*) as total_productos,
+        SUM(stock_total) as stock_total,
+        SUM(CASE WHEN stock_total <= stock_minimo THEN 1 ELSE 0 END) as productos_bajo_stock
+      FROM producto
+    `);
+
+    // Préstamos activos por periodo
+    const [prestamosActivos] = await pool.query(`
+      SELECT 
+        DATE(fecha) as fecha,
+        COUNT(*) as total_prestamos
+      FROM salida_inv
+      WHERE tipo_salida = 'Prestamo'
+      GROUP BY DATE(fecha)
+      ORDER BY fecha DESC
+      LIMIT 30
+    `);
+
+    // Solicitudes por estudiante (Top 10)
+    const [solicitudesPorEstudiante] = await pool.query(`
+      SELECT 
+        responsable_entrega,
+        COUNT(*) as total_solicitudes,
+        SUM(CASE WHEN tipo_salida = 'Solicitud Pendiente' THEN 1 ELSE 0 END) as pendientes,
+        SUM(CASE WHEN tipo_salida = 'Prestamo' THEN 1 ELSE 0 END) as aprobadas,
+        SUM(CASE WHEN tipo_salida = 'Rechazado' THEN 1 ELSE 0 END) as rechazadas
+      FROM salida_inv
+      GROUP BY responsable_entrega
+      ORDER BY total_solicitudes DESC
+      LIMIT 10
+    `);
+
+    return res.json({
+      ok: true,
+      reporte: {
+        solicitudesPorEstado: solicitudes,
+        productosPedidos: productosPedidos,
+        inventarioEstado: inventarioEstado[0] || {},
+        prestamosActivosPeriodo: prestamosActivos,
+        solicitudesPorEstudiante: solicitudesPorEstudiante
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error generando reporte', detalle: error.message });
   }
 });
 

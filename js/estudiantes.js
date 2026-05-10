@@ -310,24 +310,34 @@ function renderHistorial(datos) {
      return;
    }
 
-   tbodyHistorial.innerHTML = datos.map(function (item) {
-     const tipo_salida = String(item.tipo_salida || 'Solicitud Pendiente').toLowerCase();
-     const esPendiente = tipo_salida === 'solicitud pendiente';
-     const estadoClass = esPendiente ? 'pendiente' : 'activo';
-     const estadoTexto = esPendiente ? 'Pendiente por aprobar' : 'Activo';
-     
-     const fecha = item.fecha ? new Date(item.fecha).toLocaleDateString('es-ES') : 'Sin fecha';
-     
-     return (
-       '<tr>' +
-       '<td>#' + (item.id_salida || '--') + '</td>' +
-       '<td>' + (item.producto || 'Producto ' + item.id_producto || 'Desconocido') + '</td>' +
-       '<td>' + (item.cantidad || 0) + '</td>' +
-       '<td>' + fecha + '</td>' +
-       '<td><span class="estado-historial ' + estadoClass + '">' + estadoTexto + '</span></td>' +
-       '</tr>'
-     );
-   }).join('');
+    tbodyHistorial.innerHTML = datos.map(function (item) {
+      const tipo_salida = String(item.tipo_salida || 'Solicitud Pendiente').toLowerCase();
+      const esPendiente = tipo_salida === 'solicitud pendiente';
+      const esAprobado = tipo_salida === 'prestamo';
+      const esRechazado = tipo_salida === 'rechazado';
+
+      // clases: 'pendiente' (amarillo), 'activo' (verde) para aprobados, 'rechazado' (rojo)
+      const estadoClass = esPendiente ? 'pendiente' : (esRechazado ? 'rechazado' : 'activo');
+      const estadoTexto = esPendiente ? 'Pendiente por aprobar' : (esRechazado ? 'Rechazado' : 'Aprobado');
+
+       const fecha = item.fecha ? new Date(item.fecha).toLocaleDateString('es-ES') : 'Sin fecha';
+       
+       // observación puede venir en diferentes campos según backend: observacion, observacion_rechazo
+       const observacion = String(item.observacion || item.observacion_rechazo || '').trim();
+
+       return (
+         '<tr>' +
+         '<td>#' + (item.id_salida || '--') + '</td>' +
+         '<td>' + (item.producto || ('Producto ' + (item.id_producto || '--'))) + '</td>' +
+         '<td>' + (item.cantidad || 0) + '</td>' +
+         '<td>' + fecha + '</td>' +
+         '<td>' +
+           '<span class="estado-historial ' + estadoClass + '">' + estadoTexto + '</span>' +
+           (observacion ? '<div class="obs-historial">' + escaparAtributo(observacion) + '</div>' : '') +
+         '</td>' +
+         '</tr>'
+       );
+    }).join('');
  }
 
 function aplicarFiltros() {

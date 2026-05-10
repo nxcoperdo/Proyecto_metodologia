@@ -137,6 +137,23 @@
    border: 1px solid #ffeeba;
  }
 
+  .estado-historial.rechazado {
+    background-color: #f8d7da;
+    color: #721c24;
+    border: 1px solid #f5c6cb;
+  }
+
+  .obs-historial {
+    margin-top: 0.35rem;
+    font-size: 0.82rem;
+    color: #6c757d;
+    background: rgba(0,0,0,0.03);
+    padding: 0.35rem 0.5rem;
+    border-radius: 6px;
+    max-width: 28rem;
+    word-break: break-word;
+  }
+
  /* Tabla de historial */
  .tabla-historial {
    width: 100%;

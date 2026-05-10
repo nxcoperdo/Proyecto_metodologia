@@ -304,6 +304,16 @@ h1 {
   margin-bottom: 1rem;
 }
 
+.botones-seccion {
+  display: flex;
+  gap: 0.8rem;
+  flex-wrap: wrap;
+}
+
+.botones-seccion .btn-principal {
+  white-space: nowrap;
+}
+
 .buscador {
   display: flex;
   gap: 0.6rem;
@@ -695,6 +705,149 @@ h1 {
 .modal-caja.modal-error .modal-encabezado {
   background: #fff2f2;
   border-bottom-color: #f0c5c5;
+}
+
+
+/* =========== ESTILOS PARA REPORTE COMPLETO =========== */
+
+.reporte-completo {
+  font-size: 0.95rem;
+}
+
+.reporte-seccion {
+  margin-bottom: 2rem;
+  padding-bottom: 1.5rem;
+  border-bottom: 2px solid #e3f0e6;
+}
+
+.reporte-seccion:last-child {
+  border-bottom: none;
+}
+
+.reporte-seccion h3 {
+  color: #0b8f3a;
+  font-size: 1.1rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.reporte-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.stat-box {
+  background: linear-gradient(135deg, #f4fbf5 0%, #e8f6ec 100%);
+  border: 1px solid #c8e6d0;
+  border-radius: 12px;
+  padding: 1.2rem;
+  text-align: center;
+  transition: transform 0.3s, box-shadow 0.3s;
+}
+
+.stat-box:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 16px rgba(11, 143, 58, 0.15);
+}
+
+.stat-box.warning {
+  background: linear-gradient(135deg, #fff5f5 0%, #ffe8e8 100%);
+  border-color: #f0c5c5;
+}
+
+.stat-numero {
+  display: block;
+  font-size: 2.2rem;
+  font-weight: bold;
+  color: #0b8f3a;
+  margin-bottom: 0.5rem;
+}
+
+.stat-box.warning .stat-numero {
+  color: #bb2d2d;
+}
+
+.stat-label {
+  display: block;
+  color: #335943;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.reporte-tabla {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 0.5rem;
+  border: 1px solid #c8e6d0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.reporte-tabla thead {
+  background-color: #0b8f3a;
+  color: #ffffff;
+}
+
+.reporte-tabla th {
+  padding: 0.85rem 1rem;
+  text-align: left;
+  font-weight: 600;
+  border-right: 1px solid #086d2b;
+}
+
+.reporte-tabla th:last-child {
+  border-right: none;
+}
+
+.reporte-tabla td {
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #e3f0e6;
+  border-right: 1px solid #e3f0e6;
+}
+
+.reporte-tabla td:last-child {
+  border-right: none;
+}
+
+.reporte-tabla tbody tr:hover {
+  background-color: #f4fbf5;
+}
+
+.reporte-tabla tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.reporte-tabla .numero {
+  text-align: center;
+  font-weight: 600;
+  color: #0b8f3a;
+}
+
+.reporte-tabla .pendiente {
+  color: #d9a500;
+}
+
+.reporte-tabla .aprobada {
+  color: #0b8f3a;
+}
+
+.reporte-tabla .rechazada {
+  color: #bb2d2d;
+}
+
+.reporte-tabla.pequeña {
+  font-size: 0.9rem;
+}
+
+.modal-reporte-completo {
+  max-width: 900px;
+  max-height: 80vh;
+}
+
+.modal-reporte-completo .modal-contenido {
+  overflow-y: auto;
 }
 
 
