@@ -770,10 +770,37 @@ app.put('/api/solicitudes-pendientes/:id/rechazar', async function (req, res) {
 
 app.post('/api/devoluciones', async function (req, res) {
   try {
+    const idSalida = Number(req.body.id_salida || 0);
     const idProducto = Number(req.body.id_producto || 0);
     const cantidad = Number(req.body.cantidad || 0);
     const responsable = String(req.body.responsable || 'Sistema').trim();
 
+    // Si viene id_salida, actualizar el préstamo a devolución
+    if (idSalida) {
+      const [prestamos] = await pool.query(
+        'SELECT id_salida, cantidad FROM salida_inv WHERE id_salida = ? AND tipo_salida = ? LIMIT 1',
+        [idSalida, 'Prestamo']
+      );
+
+      if (!prestamos.length) {
+        return res.status(404).json({ ok: false, mensaje: 'Préstamo no encontrado o ya fue devuelto' });
+      }
+
+      // Actualizar el registro del préstamo a devolución
+      await pool.query(
+        'UPDATE salida_inv SET tipo_salida = ? WHERE id_salida = ?',
+        ['Devolucion', idSalida]
+      );
+
+      return res.status(201).json({ 
+        ok: true, 
+        mensaje: 'Devolución registrada correctamente',
+        id_salida: idSalida,
+        estado_actualizado: 'Devolucion'
+      });
+    }
+
+    // Alternativa: Si viene id_producto (para mantener compatibilidad)
     if (!idProducto || cantidad < 1) {
       return res.status(400).json({ ok: false, mensaje: 'Datos invalidos para devolucion' });
     }
@@ -795,6 +822,38 @@ app.post('/api/devoluciones', async function (req, res) {
     return res.status(201).json({ ok: true, mensaje: 'Devolucion registrada en entrada de inventario' });
   } catch (error) {
     return res.status(500).json({ ok: false, mensaje: 'Error registrando devolucion', detalle: error.message });
+  }
+});
+
+// Endpoint para obtener préstamos activos de un producto
+app.get('/api/prestamos-activos/:id_producto', async function (req, res) {
+  try {
+    const idProducto = Number(req.params.id_producto);
+
+    if (!idProducto) {
+      return res.status(400).json({ ok: false, mensaje: 'ID de producto invalido' });
+    }
+
+    const [prestamos] = await pool.query(`
+      SELECT 
+        si.id_salida,
+        si.fecha,
+        si.cantidad,
+        si.tipo_salida,
+        si.responsable_entrega,
+        p.nombre as producto
+      FROM salida_inv si
+      JOIN producto p ON si.id_producto = p.id_producto
+      WHERE si.id_producto = ? AND si.tipo_salida = 'Prestamo'
+      ORDER BY si.fecha DESC
+    `, [idProducto]);
+
+    return res.json({
+      ok: true,
+      prestamos: prestamos
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error consultando préstamos activos', detalle: error.message });
   }
 });
 
@@ -872,6 +931,36 @@ app.get('/api/reporte-sistema', async function (req, res) {
     });
   } catch (error) {
     return res.status(500).json({ ok: false, mensaje: 'Error generando reporte', detalle: error.message });
+  }
+});
+
+// Endpoint para obtener historial completo de préstamos y rechazos
+app.get('/api/historial-prestamos', async function (req, res) {
+  try {
+    const [historial] = await pool.query(`
+      SELECT 
+        si.id_salida,
+        si.fecha,
+        si.tipo_salida,
+        si.cantidad,
+        si.id_producto,
+        p.nombre AS producto,
+        p.marca,
+        c.nombre AS categoria,
+        si.responsable_entrega,
+        si.observacion_rechazo
+      FROM salida_inv si
+      JOIN producto p ON si.id_producto = p.id_producto
+      LEFT JOIN categoria c ON p.id_categoria = c.id_categoria
+      ORDER BY si.fecha DESC
+    `);
+
+    return res.json({
+      ok: true,
+      historial: historial
+    });
+  } catch (error) {
+    return res.status(500).json({ ok: false, mensaje: 'Error consultando historial de préstamos', detalle: error.message });
   }
 });
 

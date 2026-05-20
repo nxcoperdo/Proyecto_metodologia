@@ -29,6 +29,8 @@ const btnDevolucion = document.getElementById('btnDevolucion');
 const formBusqueda = document.querySelector('.buscador');
 const inputBusqueda = document.getElementById('busqueda');
 const resumenNumeros = document.querySelectorAll('.resumen-numero');
+const tbodyHistorial = document.getElementById('tbodyHistorial');
+const btnRefrescarHistorial = document.getElementById('btnRefrescarHistorial');
 
 let inventario = [];
 let categorias = [];
@@ -53,6 +55,7 @@ async function iniciar() {
   await cargarUbicaciones();
   await cargarInventario();
   await cargarSolicitudes();
+  await cargarHistorial();
 }
 
 function pintarUsuario() {
@@ -140,6 +143,10 @@ if (inputBusqueda) {
 const btnRefrescarSolicitudes = document.getElementById('btnRefrescarSolicitudes');
 if (btnRefrescarSolicitudes) {
   btnRefrescarSolicitudes.addEventListener('click', cargarSolicitudes);
+}
+
+if (btnRefrescarHistorial) {
+  btnRefrescarHistorial.addEventListener('click', cargarHistorial);
 }
 
 const btnGenerarReporte = document.getElementById('btnGenerarReporte');
@@ -642,47 +649,220 @@ async function registrarCategoria() {
 }
 
 async function registrarMovimiento(tipo) {
-  const titulo = tipo === 'prestamo' ? 'Registrar prestamo' : 'Registrar devolucion';
-  const datos = await dialogo.formulario(titulo, [
-    { name: 'id_producto', label: 'ID del producto', type: 'number', placeholder: 'Ejemplo: 1', required: true },
-    { name: 'cantidad', label: 'Cantidad', type: 'number', placeholder: 'Ejemplo: 2', required: true, min: 1 },
-    { name: 'responsable', label: 'Responsable', type: 'text', placeholder: 'Tu nombre', required: true }
-  ]);
+  if (tipo === 'devolucion') {
+    // Para devoluciones, primero pedir el id del producto para mostrar préstamos activos
+    const idProductoDatos = await dialogo.formulario('Seleccionar producto a devolver', [
+      { name: 'id_producto', label: 'ID del producto', type: 'number', placeholder: 'Ejemplo: 1', required: true }
+    ]);
 
-  if (!datos) {
+    if (!idProductoDatos) {
+      return;
+    }
+
+    const idProducto = Number(idProductoDatos.id_producto);
+    if (!idProducto) {
+      await dialogo.alerta('Datos invalidos', 'ID del producto inválido.', 'aviso');
+      return;
+    }
+
+    // Obtener préstamos activos de este producto
+    try {
+      const respuesta = await fetch(API_BASE + '/prestamos-activos/' + idProducto);
+      const data = await respuesta.json();
+
+      if (!respuesta.ok || !data.ok) {
+        throw new Error(data.mensaje || 'No se pudieron cargar los préstamos');
+      }
+
+      const prestamos = data.prestamos || [];
+
+      if (prestamos.length === 0) {
+        await dialogo.alerta('Sin préstamos', 'No hay préstamos activos de este producto.', 'aviso');
+        return;
+      }
+
+      // Procesar devoluciones de forma interactiva
+      let continuar = true;
+      while (continuar && prestamos.length > 0) {
+        // Crear tabla HTML con los préstamos
+        let htmlTabla = '<div class="tabla-devoluciones"><table class="tabla-modal-categorias"><thead><tr>';
+        htmlTabla += '<th>ID Préstamo</th><th>Fecha</th><th>Cantidad</th><th>Responsable</th>';
+        htmlTabla += '</tr></thead><tbody>';
+
+        prestamos.forEach(function (prestamo) {
+          const fecha = prestamo.fecha ? new Date(prestamo.fecha).toLocaleDateString('es-ES') : 'N/A';
+          htmlTabla += '<tr>';
+          htmlTabla += '<td><strong>#' + prestamo.id_salida + '</strong></td>';
+          htmlTabla += '<td>' + fecha + '</td>';
+          htmlTabla += '<td>' + prestamo.cantidad + '</td>';
+          htmlTabla += '<td>' + escaparAtributo(prestamo.responsable_entrega) + '</td>';
+          htmlTabla += '</tr>';
+        });
+
+        htmlTabla += '</tbody></table></div>';
+
+        // Mostrar la tabla y pedir ID del préstamo a devolver
+        const datosDevolucio = await dialogo.formulario(
+          'Selecciona préstamo a devolver',
+          [
+            { 
+              name: 'id_salida', 
+              label: 'ID del préstamo a devolver (de la tabla historial de prestamos y solicitudes rechazadas)',
+              type: 'number', 
+              placeholder: 'Ejemplo: 38', 
+              required: true 
+            }
+          ]
+        );
+
+        if (!datosDevolucio || !datosDevolucio.id_salida) {
+          continuar = false;
+          break;
+        }
+
+        const idSalida = Number(datosDevolucio.id_salida);
+        const prestamoSeleccionado = prestamos.find(p => p.id_salida === idSalida);
+
+        if (!prestamoSeleccionado) {
+          await dialogo.alerta('No encontrado', 'El ID del préstamo no existe en la lista.', 'aviso');
+          continue;
+        }
+
+        // Confirmar la devolución
+        const confirmacion = await dialogo.confirmacion(
+          'Confirmar devolución',
+          'Producto: ' + prestamoSeleccionado.producto + '\n' +
+          'Cantidad: ' + prestamoSeleccionado.cantidad + '\n' +
+          'Responsable: ' + prestamoSeleccionado.responsable_entrega + '\n\n' +
+          '¿Registrar esta devolución?'
+        );
+
+        if (!confirmacion) {
+          const otro = await dialogo.confirmacion('Continuar', '¿Deseas devolver otro préstamo?');
+          continuar = otro;
+          continue;
+        }
+
+        // Registrar la devolución
+        try {
+          const respDev = await fetch(API_BASE + '/devoluciones', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id_salida: idSalida })
+          });
+
+          const dataDev = await respDev.json();
+
+          if (!respDev.ok || !dataDev.ok) {
+            throw new Error(dataDev.mensaje || 'Error registrando devolución');
+          }
+
+          await dialogo.alerta('Éxito', 'Devolución registrada correctamente.', 'exito');
+
+          // Remover el préstamo de la lista
+          const index = prestamos.findIndex(p => p.id_salida === idSalida);
+          if (index > -1) {
+            prestamos.splice(index, 1);
+          }
+
+          // Preguntar si continuar
+          if (prestamos.length > 0) {
+            const otro = await dialogo.confirmacion('Continuar', '¿Deseas devolver otro préstamo?');
+            continuar = otro;
+          } else {
+            continuar = false;
+            await dialogo.alerta('Completo', 'No hay más préstamos activos de este producto.', 'aviso');
+          }
+
+          // Recargar datos
+          await cargarInventario();
+          await cargarHistorial();
+        } catch (error) {
+          await dialogo.alerta('Error', 'Error registrando devolución: ' + error.message, 'error');
+          const otro = await dialogo.confirmacion('Continuar', '¿Intentar devolver otro préstamo?');
+          continuar = otro;
+        }
+      }
+    } catch (error) {
+      await dialogo.alerta('Error', 'Error cargando préstamos: ' + error.message, 'error');
+    }
+  } else {
+    // Para préstamos
+    const titulo = 'Registrar prestamo';
+    const datos = await dialogo.formulario(titulo, [
+      { name: 'id_producto', label: 'ID del producto', type: 'number', placeholder: 'Ejemplo: 1', required: true },
+      { name: 'cantidad', label: 'Cantidad', type: 'number', placeholder: 'Ejemplo: 2', required: true, min: 1 },
+      { name: 'responsable', label: 'Responsable', type: 'text', placeholder: 'Tu nombre', required: true }
+    ]);
+
+    if (!datos) {
+      return;
+    }
+
+    const idProducto = Number(datos.id_producto);
+    const cantidad = Number(datos.cantidad);
+    const responsable = String(datos.responsable || '').trim();
+
+    if (!idProducto || cantidad < 1 || !responsable) {
+      await dialogo.alerta('Datos invalidos', 'Revisa ID, cantidad y responsable.', 'aviso');
+      return;
+    }
+
+    try {
+      const respuesta = await fetch(API_BASE + '/prestamos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ id_producto: idProducto, cantidad: cantidad, responsable: responsable })
+      });
+
+      const data = await respuesta.json();
+
+      if (!respuesta.ok || !data.ok) {
+        throw new Error(data.mensaje || 'No se pudo guardar el movimiento');
+      }
+
+      await cargarInventario();
+      await cargarHistorial();
+      await dialogo.alerta('Operacion exitosa', data.mensaje || 'Préstamo registrado.', 'exito');
+    } catch (error) {
+      await dialogo.alerta('Error en movimiento', error.message, 'error');
+    }
+  }
+}
+
+async function confirmarDevolucion(idSalida, idProducto) {
+  const confirmacion = await dialogo.confirmacion(
+    'Confirmar devolución',
+    '¿Registrar esta devolución?',
+    'pregunta'
+  );
+
+  if (!confirmacion) {
     return;
   }
-
-  const idProducto = Number(datos.id_producto);
-  const cantidad = Number(datos.cantidad);
-  const responsable = String(datos.responsable || '').trim();
-
-  if (!idProducto || cantidad < 1 || !responsable) {
-    await dialogo.alerta('Datos invalidos', 'Revisa ID, cantidad y responsable.', 'aviso');
-    return;
-  }
-
-  const ruta = tipo === 'prestamo' ? '/prestamos' : '/devoluciones';
 
   try {
-    const respuesta = await fetch(API_BASE + ruta, {
+    const respuesta = await fetch(API_BASE + '/devoluciones', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ id_producto: idProducto, cantidad: cantidad, responsable: responsable })
+      body: JSON.stringify({ id_salida: Number(idSalida) })
     });
 
     const data = await respuesta.json();
 
     if (!respuesta.ok || !data.ok) {
-      throw new Error(data.mensaje || 'No se pudo guardar el movimiento');
+      throw new Error(data.mensaje || 'No se pudo registrar la devolución');
     }
 
     await cargarInventario();
-    await dialogo.alerta('Operacion exitosa', data.mensaje || 'Movimiento registrado.', 'exito');
+    await cargarHistorial();
+    await dialogo.alerta('Éxito', 'Devolución registrada correctamente.', 'exito');
   } catch (error) {
-    await dialogo.alerta('Error en movimiento', error.message, 'error');
+    await dialogo.alerta('Error', 'Error registrando devolución: ' + error.message, 'error');
   }
 }
 
@@ -1177,13 +1357,23 @@ async function generarReporte() {
     }
 
     const reporte = data.reporte;
-    descargarReporteExcel(reporte);
+    
+    // Obtener también el historial de préstamos
+    const respuestaHistorial = await fetch(API_BASE + '/historial-prestamos');
+    const dataHistorial = await respuestaHistorial.json();
+    
+    let historial = [];
+    if (respuestaHistorial.ok && dataHistorial.ok) {
+      historial = dataHistorial.historial || [];
+    }
+    
+    descargarReporteExcel(reporte, historial);
   } catch (error) {
     await dialogo.alerta('Error', 'Error generando reporte: ' + error.message, 'error');
   }
 }
 
-function descargarReporteExcel(reporte) {
+function descargarReporteExcel(reporte, historial) {
   try {
     // Verificar que XLSX esté disponible
     if (typeof XLSX === 'undefined') {
@@ -1305,30 +1495,64 @@ function descargarReporteExcel(reporte) {
     prestamosData.push(['TOTAL PRÉSTAMOS EN PERÍODO', totalPrestamos, '']);
     prestamosData.push(['PROMEDIO DIARIO', promedioDiario, '']);
 
-    const wsPrestamos = XLSX.utils.aoa_to_sheet(prestamosData);
-    wsPrestamos['!cols'] = [{wch: 25}, {wch: 20}, {wch: 20}];
-    aplicarEstilos(wsPrestamos, 2);
-    XLSX.utils.book_append_sheet(wb, wsPrestamos, 'Préstamos');
+     const wsPrestamos = XLSX.utils.aoa_to_sheet(prestamosData);
+     wsPrestamos['!cols'] = [{wch: 25}, {wch: 20}, {wch: 20}];
+     aplicarEstilos(wsPrestamos, 2);
+     XLSX.utils.book_append_sheet(wb, wsPrestamos, 'Préstamos');
 
-    // ===== HOJA 6: NOTAS Y OBSERVACIONES =====
-    const notasData = [
-      ['NOTAS Y RECOMENDACIONES'],
-      [],
-      ['INFORMACIÓN IMPORTANTE', ''],
-      ['1. Productos Bajo Stock', 'Los productos con stock inferior al mínimo deben ser reabastecidos prioritariamente.'],
-      ['2. Solicitudes Rechazadas', 'Los estudiantes con solicitudes rechazadas deben contactar con el administrador para saber el motivo.'],
-      ['3. Período de Datos', 'Este reporte incluye datos de los últimos 30 días de préstamos activos.'],
-      ['4. Actualizaciones', 'El reporte se genera automáticamente cada vez que se solicita.'],
-      [],
-      ['LEYENDA', ''],
-      ['Solicitud Pendiente', 'Solicitud en espera de aprobación por un administrador'],
-      ['Prestamo (Aprobado)', 'Solicitud aprobada - artículo está siendo prestado'],
-      ['Rechazado', 'Solicitud denegada por falta de stock u otros motivos']
-    ];
-    const wsNotas = XLSX.utils.aoa_to_sheet(notasData);
-    wsNotas['!cols'] = [{wch: 25}, {wch: 60}];
-    aplicarEstilos(wsNotas, 1);
-    XLSX.utils.book_append_sheet(wb, wsNotas, 'Notas');
+     // ===== HOJA 6: HISTORIAL COMPLETO DE PRÉSTAMOS Y SOLICITUDES RECHAZADAS =====
+     const historialData = [
+       ['HISTORIAL COMPLETO DE PRÉSTAMOS Y SOLICITUDES RECHAZADAS'],
+       [],
+       ['ID Salida', 'Fecha', 'Estado', 'Estudiante', 'ID Producto', 'Producto', 'Marca', 'Categoría', 'Cantidad', 'Observaciones']
+     ];
+     
+     (historial || []).forEach(function(item) {
+       const fecha = item.fecha ? new Date(item.fecha).toLocaleDateString('es-ES') : 'Sin fecha';
+       const tipo = String(item.tipo_salida || '').toLowerCase();
+       const estadoTexto = tipo === 'solicitud pendiente' ? 'Pendiente' : (tipo === 'rechazado' ? 'Rechazado' : (tipo === 'prestamo' ? 'Prestado' : 'Devuelto'));
+       const observaciones = String(item.observacion_rechazo || '').trim() || '--';
+       
+       historialData.push([
+         item.id_salida || '--',
+         fecha,
+         estadoTexto,
+         item.responsable_entrega || 'N/A',
+         item.id_producto || '--',
+         item.producto || 'N/A',
+         item.marca || '--',
+         item.categoria || '--',
+         item.cantidad || 0,
+         observaciones
+       ]);
+     });
+
+     const wsHistorial = XLSX.utils.aoa_to_sheet(historialData);
+     wsHistorial['!cols'] = [{wch: 12}, {wch: 15}, {wch: 15}, {wch: 20}, {wch: 12}, {wch: 20}, {wch: 15}, {wch: 15}, {wch: 10}, {wch: 30}];
+     aplicarEstilos(wsHistorial, 2);
+     XLSX.utils.book_append_sheet(wb, wsHistorial, 'Historial');
+
+     // ===== HOJA 7: NOTAS Y OBSERVACIONES =====
+     const notasData = [
+       ['NOTAS Y RECOMENDACIONES'],
+       [],
+       ['INFORMACIÓN IMPORTANTE', ''],
+       ['1. Productos Bajo Stock', 'Los productos con stock inferior al mínimo deben ser reabastecidos prioritariamente.'],
+       ['2. Solicitudes Rechazadas', 'Los estudiantes con solicitudes rechazadas deben contactar con el administrador para saber el motivo.'],
+       ['3. Período de Datos', 'Este reporte incluye datos de los últimos 30 días de préstamos activos.'],
+       ['4. Actualizaciones', 'El reporte se genera automáticamente cada vez que se solicita.'],
+       ['5. Historial Completo', 'Revisa la hoja "Historial" para ver todos los préstamos, devoluciones y solicitudes rechazadas.'],
+       [],
+       ['LEYENDA DE ESTADOS', ''],
+       ['Pendiente', 'Solicitud en espera de aprobación por un administrador'],
+       ['Prestado', 'Solicitud aprobada - artículo está siendo prestado'],
+       ['Devuelto', 'Artículo devuelto completamente'],
+       ['Rechazado', 'Solicitud denegada por falta de stock u otros motivos']
+     ];
+     const wsNotas = XLSX.utils.aoa_to_sheet(notasData);
+     wsNotas['!cols'] = [{wch: 25}, {wch: 60}];
+     aplicarEstilos(wsNotas, 1);
+     XLSX.utils.book_append_sheet(wb, wsNotas, 'Notas');
 
     // Descargar el archivo
     const nombreArchivo = 'Reporte_Inventario_Completo_' + new Date().toISOString().split('T')[0] + '.xlsx';
@@ -1339,3 +1563,60 @@ function descargarReporteExcel(reporte) {
     dialogo.alerta('Error', 'Error generando archivo Excel: ' + error.message, 'error');
   }
 }
+
+// Funciones para cargar y mostrar historial de préstamos
+async function cargarHistorial() {
+  try {
+    const respuesta = await fetch(API_BASE + '/historial-prestamos');
+    const datos = await respuesta.json();
+
+    if (!respuesta.ok) {
+      throw new Error(datos.mensaje || 'Error cargando historial');
+    }
+
+    if (datos.ok && datos.historial) {
+      renderHistorial(datos.historial);
+    } else {
+      throw new Error('Respuesta invalida del servidor');
+    }
+  } catch (error) {
+    console.error('Error cargando historial:', error);
+    if (tbodyHistorial) {
+      tbodyHistorial.innerHTML = '<tr><td colspan="10">Error cargando historial: ' + escaparAtributo(error.message) + '</td></tr>';
+    }
+  }
+}
+
+function renderHistorial(historial) {
+  if (!tbodyHistorial) return;
+
+  if (!historial || historial.length === 0) {
+    tbodyHistorial.innerHTML = '<tr><td colspan="10">No hay historial de préstamos aún.</td></tr>';
+    return;
+  }
+
+  tbodyHistorial.innerHTML = historial.map(function (item) {
+    const tipo = String(item.tipo_salida || '').toLowerCase();
+    const estadoClass = tipo === 'solicitud pendiente' ? 'pendiente' : (tipo === 'rechazado' ? 'rechazado' : ('activo ' + tipo.toLowerCase()));
+    const estadoTexto = tipo === 'solicitud pendiente' ? 'Pendiente' : (tipo === 'rechazado' ? 'Rechazado' : (tipo === 'prestamo' ? 'Prestado' : 'Devuelto'));
+    
+    const fecha = item.fecha ? new Date(item.fecha).toLocaleDateString('es-ES') : 'Sin fecha';
+    const observacion = String(item.observacion_rechazo || '').trim();
+
+    return (
+      '<tr>' +
+      '<td>#' + (item.id_salida || '--') + '</td>' +
+      '<td>' + fecha + '</td>' +
+      '<td><span class="estado-historial ' + estadoClass + '">' + estadoTexto + '</span></td>' +
+      '<td>' + escaparAtributo(item.responsable_entrega || 'N/A') + '</td>' +
+      '<td><strong>#' + (item.id_producto || '--') + '</strong></td>' +
+      '<td>' + escaparAtributo(item.producto || 'N/A') + '</td>' +
+      '<td>' + escaparAtributo(item.marca || '--') + '</td>' +
+      '<td>' + escaparAtributo(item.categoria || '--') + '</td>' +
+      '<td>' + (item.cantidad || 0) + '</td>' +
+      '<td>' + (observacion ? '<span class="obs-historial">' + escaparAtributo(observacion) + '</span>' : '--') + '</td>' +
+      '</tr>'
+    );
+  }).join('');
+}
+
